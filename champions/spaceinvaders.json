@@ -1,0 +1,15 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    objs = objects(state)\n    player = objs.get(\"player\")\n    \n    if player is None:\n        return \"noop\"\n    \n    aliens = objs.all(\"alien\")\n    bullets = objs.all(\"bullet\")\n    \n    # THREAT ASSESSMENT: detect incoming bullets\n    incoming_threats = []\n    for bullet in bullets:\n        if bullet.approaching(player):\n            speed = math.sqrt(bullet.dx**2 + bullet.dy**2)\n            if speed > 0.1:\n                tti = player.distance_to(bullet) / speed\n                if tti < 30:\n                    incoming_threats.append((bullet, tti))\n    \n    incoming_threats.sort(key=lambda x: x[1])\n    \n    # EVASION: dodge immediate threats\n    if incoming_threats:\n        closest_bullet, tti = incoming_threats[0]\n        if tti < 20:\n            if closest_bullet.x > player.x:\n                return \"left\"\n            else:\n                return \"right\"\n    \n    # TARGETING: engage aliens\n    if aliens:\n        closest_alien = min(aliens, key=lambda a: player.distance_to(a))\n        \n        if closest_alien.y < player.y - 30:  # Alien is above us\n            dx = closest_alien.x - player.x\n            horiz_gap = abs(dx)\n            \n            if horiz_gap < 12:\n                # Aligned \u2014 fire!\n                return \"fire\"\n            elif horiz_gap < 50 and closest_alien.y > -50:\n                if horiz_gap < 30:\n                    # Very close, fire at angle\n                    if dx > 0:\n                        return \"rightfire\"\n                    else:\n                        return \"leftfire\"\n                else:\n                    # Move to align\n                    if dx > 0:\n                        return \"right\"\n                    else:\n                        return \"left\"\n            else:\n                # Far alien \u2014 move to align slowly\n                if dx > 0:\n                    return \"right\"\n                else:\n                    return \"left\"\n    \n    # NO THREATS, NO ALIENS: stay safe\n    # Shield zone is x \u2248 42\u2013106. Player at x=49 is safe.\n    # Only recenter if we drift far from the safe zone (> 20 px from shields).\n    shield_left = 42\n    shield_right = 106\n    shield_mid = (shield_left + shield_right) / 2  # 74\n    \n    safe_zone_left = shield_left - 10\n    safe_zone_right = shield_right + 10\n    \n    if player.x < safe_zone_left:\n        # Drifted too far left, move right to safety\n        return \"right\"\n    elif player.x > safe_zone_right:\n        # Drifted too far right, move left to safety\n        return \"left\"\n    else:\n        # Within safe zone \u2014 hold position\n        return \"noop\"\n",
+ "game": "spaceinvaders",
+ "reported_score": 490.0,
+ "episode": 20,
+ "rails": {
+  "--max-ticks": "6000"
+ },
+ "source_hashes": {
+  "runner": "83f3971da1dfee8a",
+  "prompt": "8bc172abf7a1a2f1",
+  "env": "7b352c26756987e5"
+ },
+ "model": "claude-haiku-4-5-20251001"
+}

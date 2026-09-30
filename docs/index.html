@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A language model writes a game-playing controller as an ordinary Python program. Choosing an action takes one function call, with no language-model call and no planning.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Code to Control: Synthesizing Parameterized Reactive Controllers">
+  <meta property="og:description" content="A language model writes a game-playing controller as an ordinary Python program. Choosing an action takes one function call, with no language-model call and no planning.">
+  <meta property="og:url" content="https://zerghamahmed.github.io/code-to-control/">
+  <meta property="og:image" content="https://zerghamahmed.github.io/code-to-control/static/images/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Code to Control: Synthesizing Parameterized Reactive Controllers">
+  <meta name="twitter:description" content="A language model writes a game-playing controller as an ordinary Python program. Choosing an action takes one function call, with no language-model call and no planning.">
+  <meta name="twitter:image" content="https://zerghamahmed.github.io/code-to-control/static/images/og.png">
+  <title>Code to Control</title>
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <link rel="icon" href="./static/favicon.svg">
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script>
+    function showCode(viewer, game) {
+      const root = document.getElementById(viewer);
+      root.querySelectorAll('.code-tab').forEach(b => {
+        const on = b.dataset.game === game;
+        b.classList.toggle('is-dark', on);
+        b.setAttribute('aria-pressed', on);
+      });
+      root.querySelectorAll('.code-pane').forEach(p =>
+        p.classList.toggle('is-active', p.dataset.game === game));
+    }
+    function play(v) {
+      const p = v.play();
+      if (p) p.catch(() => {});
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.hljs) hljs.highlightAll();
+      document.querySelectorAll('.code-viewer').forEach(root =>
+        root.querySelectorAll('.code-tab').forEach(b =>
+          b.addEventListener('click', () => showCode(root.id, b.dataset.game))));
+      document.querySelectorAll('.read-code').forEach(a =>
+        a.addEventListener('click', () => showCode(a.getAttribute('href').slice(1), a.dataset.game)));
+      // Play clips while they are on screen and pause them otherwise. A tap pauses or resumes,
+      // which also starts playback where the browser blocks autoplay (e.g. iOS Low Power Mode).
+      const videos = document.querySelectorAll('video');
+      const seen = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+        if (!e.isIntersecting) e.target.pause();
+        else if (!e.target.dataset.held) play(e.target);
+      }), { rootMargin: '100px' }) : null;
+      videos.forEach(v => {
+        v.muted = true;
+        if (seen) seen.observe(v); else play(v);
+        v.addEventListener('click', () => {
+          if (v.paused) { delete v.dataset.held; play(v); }
+          else { v.dataset.held = '1'; v.pause(); }
+        });
+      });
+    });
+  </script>
+  <style>
+    pre { font-size: 0.78rem; line-height: 1.45; border-radius: 6px; padding: 0 !important;
+           background: #f6f8fa !important; }
+    pre code.hljs { padding: 0.9rem 1rem; background: #f6f8fa; }
+    video { cursor: pointer; }
+    .teaser .hero-body { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+    .headline-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.25rem; }
+    .headline-item { display: flex; flex-direction: column; align-items: center; }
+    .headline-name { font-family: monospace; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
+    .headline-video { height: 230px; width: auto; border-radius: 6px; image-rendering: pixelated; }
+    .headline-score { font-family: monospace; font-weight: 700; font-size: 1.15rem; margin-top: 0.35rem; }
+    /* Bulma's .hero.is-light makes its links inherit grey text; keep these blue. */
+    .teaser a.headline-score, .teaser .teaser-caption a { color: #3273dc !important; }
+    .headline-small { font-family: monospace; color: #6b7280; font-size: 0.8rem; max-width: 180px; }
+    .teaser-caption { max-width: 640px; margin: 1.25rem auto 0 !important; }
+    .teaser-caption p + p { margin-top: 0.75rem; }
+    .game-card { text-align: center; margin-bottom: 1.5rem; }
+    .game-video { width: 100%; max-width: 280px; border-radius: 6px; image-rendering: pixelated; }
+    .game-title { font-weight: 600; font-size: 1.1rem; margin-top: 0.3rem; }
+    .game-score { color: #6b7280; }
+    .mujoco-note { max-width: 640px; margin: 0 auto 0.5rem; }
+    .clip-caption { color: #6b7280; font-size: 0.85rem; max-width: 240px; margin: 0 auto; }
+    .transfer-table { max-width: 720px; margin: 2rem auto 0.75rem; }
+    .transfer-table th, .transfer-table td { text-align: center !important;
+      font-variant-numeric: tabular-nums; vertical-align: middle; }
+    .transfer-table th:first-child, .transfer-table td:first-child { text-align: left !important; }
+    .transfer-table td.full { background: #e9f6ec; }
+    .transfer-table td.part { background: #fdf3e1; }
+    .transfer-table .refit { white-space: nowrap; font-weight: 600; }
+    .transfer-sub { margin: 1.75rem 0 0.9rem !important; }
+    .change-detail { color: #6b7280; font-size: 0.85em; margin-left: 0.3rem; }
+    .transfer-table .change-detail { display: block; margin-left: 0; }
+    html { scroll-behavior: smooth; }
+    .code-viewer { scroll-margin-top: 1rem; margin-top: 1rem; }
+    .code-pane { display: none; }
+    .code-pane.is-active { display: block; }
+    .code-pane pre { max-height: 36rem; overflow: auto; }
+    .code-head { color: #6b7280; font-size: 0.9rem; margin-bottom: 0.5rem; text-align: center; }
+    .figure { width: 100%; max-width: 760px; }
+    .figure-small { width: 100%; max-width: 460px; }
+    .title-hero .hero-body { padding-bottom: 1.5rem; }
+    .affiliations { margin-top: 0.3rem; color: #4a4a4a; }
+    .affiliations .author-block { margin: 0 0.5rem; }
+    @media screen and (max-width: 768px) {
+      .title.is-1.publication-title { font-size: 2rem; }
+      .publication-authors { font-size: 1.1rem !important; }
+      .publication-authors.affiliations { font-size: 0.9rem !important; }
+      .teaser .subtitle { font-size: 1.05rem; }
+      .headline-strip { gap: 0.75rem; }
+      .headline-item { width: calc(50% - 0.5rem); }
+      .headline-video { height: auto; width: 100%; max-height: 190px; object-fit: contain; }
+      .game-title { font-size: 1rem; }
+      .game-score { font-size: 0.85rem; }
+      .clip-caption { font-size: 0.75rem; }
+      .transfer-table { font-size: 0.8rem; }
+    }
+  </style>
+  <noscript><style>.code-pane { display: block; }</style></noscript>
+</head>
+<body>
+
+<section class="hero title-hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Code to Control: Synthesizing Parameterized Reactive Controllers</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">Zergham Ahmed<sup>1</sup>,</span>
+            <span class="author-block">Joshua B. Tenenbaum<sup>2</sup>,</span>
+            <span class="author-block">Chris Bates<sup>1,3</sup>,</span>
+            <span class="author-block">Samuel J. Gershman<sup>1</sup></span>
+          </div>
+          <div class="is-size-6 publication-authors affiliations">
+            <span class="author-block"><sup>1</sup>Harvard University</span>
+            <span class="author-block"><sup>2</sup>Massachusetts Institute of Technology</span>
+            <span class="author-block"><sup>3</sup>Florida Institute for Human and Machine Cognition</span>
+          </div>
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- Uncomment once the arXiv ID exists.
+              <span class="link-block">
+                <a href="https://arxiv.org/abs/XXXX.XXXXX" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
+                </a>
+              </span>
+              -->
+              <span class="link-block">
+                <a href="https://github.com/ZerghamAhmed/code-to-control" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero is-light is-small teaser">
+  <div class="hero-body">
+    <div class="container is-max-desktop has-text-centered">
+      <div class="headline-strip">
+        <div class="headline-item">
+          <p class="headline-name">Pong</p>
+          <video autoplay muted loop playsinline class="headline-video" width="480" height="630"
+                 poster="./static/images/posters/pong_best.png"><source src="./static/videos/pong_best.mp4" type="video/mp4"></video>
+          <a class="read-code headline-score" href="#code" data-game="pong_best">21&ndash;0</a>
+          
+        </div>
+        <div class="headline-item">
+          <p class="headline-name">Space Invaders</p>
+          <video autoplay muted loop playsinline class="headline-video" width="480" height="630"
+                 poster="./static/images/posters/spaceinvaders.png"><source src="./static/videos/spaceinvaders.mp4" type="video/mp4"></video>
+          <a class="read-code headline-score" href="#code" data-game="spaceinvaders">490</a>
+          <p class="headline-small">points</p>
+        </div>
+        <div class="headline-item">
+          <p class="headline-name">Flappy Bird</p>
+          <video autoplay muted loop playsinline class="headline-video" width="420" height="600"
+                 poster="./static/images/posters/flappy.png"><source src="./static/videos/flappy.mp4" type="video/mp4"></video>
+          <a class="read-code headline-score" href="#code" data-game="flappy">20,000 steps</a>
+          <p class="headline-small">without a crash</p>
+        </div>
+        <div class="headline-item">
+          <p class="headline-name">HalfCheetah</p>
+          <video autoplay muted loop playsinline class="headline-video" width="480" height="360"
+                 poster="./static/images/posters/mujoco/halfcheetah.png"><source src="./static/videos/mujoco/halfcheetah.mp4" type="video/mp4"></video>
+          <a class="read-code headline-score" href="#code-mujoco" data-game="halfcheetah">212.55&nbsp;m</a>
+          <p class="headline-small">at 4.25&nbsp;m/s</p>
+        </div>
+      </div>
+      <div class="subtitle teaser-caption">
+        <p>Code to Control learns executable controllers directly from interaction. A language
+           model writes each controller's structure, and derivative-free search fits its
+           numerical parameters when useful. The learned controllers act directly as policies
+           across Atari, Flappy Bird, and MuJoCo.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified"><p>Recent LLM-based approaches to control either invoke a language model to select actions or synthesize world models that require planning at every decision, introducing latency that can limit real-time use. We introduce Code to Control, an approach that synthesizes Python controllers which execute directly as policies. Code to Control separates program structure from parameters. An LLM synthesizes the controller structure, while derivative-free search fits its parameters for continuous control using feedback from the environment. Once learned, the resulting controllers require neither LLM inference nor planning at decision time, enabling real-time gameplay and, under our timing protocol, faster action selection than a PPO policy. Across a suite of Atari games, Flappy Bird, and MuJoCo tasks, Code to Control outperforms planning-based program synthesis methods, remains competitive with deep reinforcement learning while using fewer environment interactions, transfers across substantial changes in environment dynamics, and scales to complex locomotion tasks.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Code to Control Overview</h2>
+        <img src="./static/images/concept.png" class="figure" alt="Code to Control schema">
+        <div class="content has-text-justified" style="margin-top:1rem">
+          <p>Our method writes a controller, plays episodes, and uses the trajectories to revise
+             the program. Its numerical parameters can be fit separately from environment
+             feedback when useful, especially in continuous control. There the program is a
+             feature map &phi;(o,&nbsp;t), and search fits the matrix W that maps features to
+             actuator commands.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Learned Controllers</h2>
+    <div class="content has-text-centered">
+      <p>Each controller is shown exactly as produced by Code to Control, with scores reported
+         as the median over three runs.</p>
+    </div>
+    <div class="columns is-multiline is-centered is-mobile">
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/pong.png"><source src="./static/videos/pong.mp4" type="video/mp4"></video>
+            <p class="game-title">Pong</p>
+            <p class="game-score">score +18</p>
+            
+            <a class="read-code" href="#code" data-game="pong">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/spaceinvaders.png"><source src="./static/videos/spaceinvaders.mp4" type="video/mp4"></video>
+            <p class="game-title">Space Invaders</p>
+            <p class="game-score">score 490</p>
+            
+            <a class="read-code" href="#code" data-game="spaceinvaders">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/asterix.png"><source src="./static/videos/asterix.mp4" type="video/mp4"></video>
+            <p class="game-title">Asterix</p>
+            <p class="game-score">score 3,100</p>
+            
+            <a class="read-code" href="#code" data-game="asterix">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/breakout.png"><source src="./static/videos/breakout.mp4" type="video/mp4"></video>
+            <p class="game-title">Breakout</p>
+            <p class="game-score">score 19</p>
+            
+            <a class="read-code" href="#code" data-game="breakout">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/fishingderby.png"><source src="./static/videos/fishingderby.mp4" type="video/mp4"></video>
+            <p class="game-title">Fishing Derby</p>
+            <p class="game-score">score +31</p>
+            
+            <a class="read-code" href="#code" data-game="fishingderby">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/freeway.png"><source src="./static/videos/freeway.mp4" type="video/mp4"></video>
+            <p class="game-title">Freeway</p>
+            <p class="game-score">score 22</p>
+            
+            <a class="read-code" href="#code" data-game="freeway">View the controller</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy.png"><source src="./static/videos/flappy.mp4" type="video/mp4"></video>
+            <p class="game-title">Flappy Bird</p>
+            <p class="game-score">score 311</p>
+            <p class="is-size-7 has-text-grey">The full episode survives all 20,000 steps.</p>
+            <a class="read-code" href="#code" data-game="flappy">View the controller</a>
+          </div>
+        </div>
+    </div>
+    <div id="code" class="code-viewer">
+      <div class="buttons is-centered code-tabs">
+        <button class="button is-small is-rounded code-tab is-dark" data-game="pong" aria-pressed="true">Pong</button><button class="button is-small is-rounded code-tab" data-game="spaceinvaders" aria-pressed="false">Space Invaders</button><button class="button is-small is-rounded code-tab" data-game="asterix" aria-pressed="false">Asterix</button><button class="button is-small is-rounded code-tab" data-game="breakout" aria-pressed="false">Breakout</button><button class="button is-small is-rounded code-tab" data-game="fishingderby" aria-pressed="false">Fishing Derby</button><button class="button is-small is-rounded code-tab" data-game="freeway" aria-pressed="false">Freeway</button><button class="button is-small is-rounded code-tab" data-game="flappy" aria-pressed="false">Flappy Bird</button><button class="button is-small is-rounded code-tab" data-game="pong_best" aria-pressed="false">Pong 21–0</button>
+      </div>
+      <div class="code-pane is-active" data-game="pong">
+        <p class="code-head">Pong &middot; score +18 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/pong.py">champions/pong.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    player = objs.get(&quot;player&quot;)
+    
+    if player is None:
+        return &quot;noop&quot;
+    
+    # Check if there&#x27;s a ball to track
+    ball = objs.get(&quot;ball&quot;)
+    
+    if ball is None:
+        # No ball yet; hold center position
+        return &quot;noop&quot;
+    
+    # Predict where the ball will be in the near future
+    # The ball moves with velocity (dx, dy), so in ~10 ticks it will move by (10*dx, 10*dy)
+    # Lead the ball prediction by a few ticks to account for reaction latency
+    lead_ticks = 5  # Predict 5 ticks ahead
+    predicted_ball_y = ball.y + ball.dy * lead_ticks
+    
+    player_center = player.y
+    deadzone = 4.0  # Tighter deadzone for more responsive control
+    
+    if player_center &lt; predicted_ball_y - deadzone:
+        # Player is above where the ball will be; move down
+        return &quot;down&quot;
+    elif player_center &gt; predicted_ball_y + deadzone:
+        # Player is below where the ball will be; move up
+        return &quot;up&quot;
+    else:
+        # Player is near the predicted ball position; hold position
+        return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="spaceinvaders">
+        <p class="code-head">Space Invaders &middot; score 490 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/spaceinvaders.py">champions/spaceinvaders.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    player = objs.get(&quot;player&quot;)
+    
+    if player is None:
+        return &quot;noop&quot;
+    
+    aliens = objs.all(&quot;alien&quot;)
+    bullets = objs.all(&quot;bullet&quot;)
+    
+    # THREAT ASSESSMENT: detect incoming bullets
+    incoming_threats = []
+    for bullet in bullets:
+        if bullet.approaching(player):
+            speed = math.sqrt(bullet.dx**2 + bullet.dy**2)
+            if speed &gt; 0.1:
+                tti = player.distance_to(bullet) / speed
+                if tti &lt; 30:
+                    incoming_threats.append((bullet, tti))
+    
+    incoming_threats.sort(key=lambda x: x[1])
+    
+    # EVASION: dodge immediate threats
+    if incoming_threats:
+        closest_bullet, tti = incoming_threats[0]
+        if tti &lt; 20:
+            if closest_bullet.x &gt; player.x:
+                return &quot;left&quot;
+            else:
+                return &quot;right&quot;
+    
+    # TARGETING: engage aliens
+    if aliens:
+        closest_alien = min(aliens, key=lambda a: player.distance_to(a))
+        
+        if closest_alien.y &lt; player.y - 30:  # Alien is above us
+            dx = closest_alien.x - player.x
+            horiz_gap = abs(dx)
+            
+            if horiz_gap &lt; 12:
+                # Aligned — fire!
+                return &quot;fire&quot;
+            elif horiz_gap &lt; 50 and closest_alien.y &gt; -50:
+                if horiz_gap &lt; 30:
+                    # Very close, fire at angle
+                    if dx &gt; 0:
+                        return &quot;rightfire&quot;
+                    else:
+                        return &quot;leftfire&quot;
+                else:
+                    # Move to align
+                    if dx &gt; 0:
+                        return &quot;right&quot;
+                    else:
+                        return &quot;left&quot;
+            else:
+                # Far alien — move to align slowly
+                if dx &gt; 0:
+                    return &quot;right&quot;
+                else:
+                    return &quot;left&quot;
+    
+    # NO THREATS, NO ALIENS: stay safe
+    # Shield zone is x ≈ 42–106. Player at x=49 is safe.
+    # Only recenter if we drift far from the safe zone (&gt; 20 px from shields).
+    shield_left = 42
+    shield_right = 106
+    shield_mid = (shield_left + shield_right) / 2  # 74
+    
+    safe_zone_left = shield_left - 10
+    safe_zone_right = shield_right + 10
+    
+    if player.x &lt; safe_zone_left:
+        # Drifted too far left, move right to safety
+        return &quot;right&quot;
+    elif player.x &gt; safe_zone_right:
+        # Drifted too far right, move left to safety
+        return &quot;left&quot;
+    else:
+        # Within safe zone — hold position
+        return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="asterix">
+        <p class="code-head">Asterix &middot; score 3,100 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/asterix.py">champions/asterix.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    player = objs.get(&quot;player&quot;)
+    
+    if player is None:
+        return &quot;noop&quot;
+    
+    consumables = objs.all(&quot;consumable&quot;)
+    hazards = objs.all(&quot;car&quot;) + objs.all(&quot;obstacle&quot;)
+    
+    # If no consumables left, we&#x27;ve won — STOP MOVING
+    if not consumables or state.get(&quot;won&quot;, False):
+        return &quot;noop&quot;
+    
+    # Check for approaching hazards and evade preemptively
+    for hazard in hazards:
+        # Use larger safety margin and check approach velocity
+        if hazard.approaching(player) and player.distance_to(hazard) &lt; 80:
+            # Approaching hazard within danger zone — evade
+            if hazard.x &gt; player.x:
+                # Hazard to the right, move left
+                if hazard.y &gt; player.y:
+                    return &quot;upleft&quot;
+                else:
+                    return &quot;downleft&quot;
+            else:
+                # Hazard to the left, move right
+                if hazard.y &gt; player.y:
+                    return &quot;upright&quot;
+                else:
+                    return &quot;downright&quot;
+        
+        # Also handle contact/near-contact
+        if player.touches(hazard, margin=10):
+            if hazard.x &gt; player.x:
+                if hazard.y &gt; player.y:
+                    return &quot;upleft&quot;
+                else:
+                    return &quot;downleft&quot;
+            else:
+                if hazard.y &gt; player.y:
+                    return &quot;upright&quot;
+                else:
+                    return &quot;downright&quot;
+    
+    # Find the closest consumable
+    target = None
+    min_distance = float(&#x27;inf&#x27;)
+    for c in consumables:
+        dist = player.distance_to(c)
+        if dist &lt; min_distance:
+            min_distance = dist
+            target = c
+    
+    if target is None:
+        return &quot;noop&quot;
+    
+    # Calculate direction to target
+    dx = target.x - player.x
+    dy = target.y - player.y
+    
+    # Larger threshold to reduce oscillation
+    horizontal_threshold = 5.0
+    
+    # Move toward target
+    if abs(dy) &gt; abs(dx):
+        # Vertical component dominates
+        if dy &gt; 0:  # Target below
+            if dx &gt; horizontal_threshold:
+                return &quot;downright&quot;
+            elif dx &lt; -horizontal_threshold:
+                return &quot;downleft&quot;
+            else:
+                return &quot;down&quot;
+        else:  # Target above
+            if dx &gt; horizontal_threshold:
+                return &quot;upright&quot;
+            elif dx &lt; -horizontal_threshold:
+                return &quot;upleft&quot;
+            else:
+                return &quot;up&quot;
+    else:
+        # Horizontal component dominates
+        if dx &gt; horizontal_threshold:
+            return &quot;right&quot;
+        elif dx &lt; -horizontal_threshold:
+            return &quot;left&quot;
+        else:
+            if dy &gt; 0:
+                return &quot;down&quot;
+            elif dy &lt; 0:
+                return &quot;up&quot;
+            else:
+                return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="breakout">
+        <p class="code-head">Breakout &middot; score 19 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/breakout.py">champions/breakout.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    player = objs.get(&quot;player&quot;)
+    
+    if player is None:
+        return &quot;noop&quot;
+    
+    # Look for a ball in the state
+    ball = objs.get(&quot;ball&quot;)
+    
+    # If no ball exists yet, fire to start the game
+    if ball is None:
+        return &quot;fire&quot;
+    
+    # Ball exists - track it and position paddle defensively
+    dx = ball.x - player.x
+    dy = ball.y - player.y
+    
+    # Safety margin: if ball is approaching from above or is close to paddle level,
+    # move aggressively to get under it
+    
+    # If ball is moving downward and is already close to or below paddle, center under it urgently
+    if ball.dy &gt; 0 and dy &gt; -10:  # dy &gt; -10 means ball is below or very close to paddle
+        # Ball is coming down at us; position paddle under its x
+        if abs(dx) &gt; 5:
+            return &quot;left&quot; if dx &lt; 0 else &quot;right&quot;
+        else:
+            return &quot;noop&quot;
+    
+    # Normal case: ball is above us, track its horizontal motion
+    if ball.y &lt; player.y:
+        # Ball approaching horizontally toward us from the left
+        if ball.dx &lt; 0 and dx &lt; 0:
+            return &quot;left&quot;
+        # Ball approaching horizontally toward us from the right
+        if ball.dx &gt; 0 and dx &gt; 0:
+            return &quot;right&quot;
+        # Ball above but may be heading to either side; position under it
+        if abs(dx) &gt; 10:
+            return &quot;left&quot; if dx &lt; 0 else &quot;right&quot;
+    
+    # Default: do nothing
+    return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="fishingderby">
+        <p class="code-head">Fishing Derby &middot; score +31 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/fishingderby.py">champions/fishingderby.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    
+    # Get player one&#x27;s hook
+    hook = objs.get(&quot;playeronehook&quot;)
+    if hook is None:
+        return &quot;noop&quot;
+    
+    # Get all fish
+    fish_list = objs.all(&quot;fish&quot;)
+    if not fish_list:
+        return &quot;noop&quot;
+    
+    # Find nearest fish
+    nearest_fish = None
+    min_dist = float(&#x27;inf&#x27;)
+    for fish in fish_list:
+        dist = hook.distance_to(fish)
+        if dist &lt; min_dist:
+            min_dist = dist
+            nearest_fish = fish
+    
+    if nearest_fish is None:
+        return &quot;noop&quot;
+    
+    # Calculate direction to nearest fish
+    dx = nearest_fish.x - hook.x
+    dy = nearest_fish.y - hook.y
+    
+    angle = math.atan2(dy, dx)
+    angle_deg = math.degrees(angle) % 360
+    
+    # Map angle to direction and fire action
+    if angle_deg &lt; 22.5 or angle_deg &gt;= 337.5:
+        direction = &quot;right&quot;
+        fire_action = &quot;rightfire&quot;
+    elif angle_deg &lt; 67.5:
+        direction = &quot;downright&quot;
+        fire_action = &quot;downrightfire&quot;
+    elif angle_deg &lt; 112.5:
+        direction = &quot;down&quot;
+        fire_action = &quot;downfire&quot;
+    elif angle_deg &lt; 157.5:
+        direction = &quot;downleft&quot;
+        fire_action = &quot;downleftfire&quot;
+    elif angle_deg &lt; 202.5:
+        direction = &quot;left&quot;
+        fire_action = &quot;leftfire&quot;
+    elif angle_deg &lt; 247.5:
+        direction = &quot;upleft&quot;
+        fire_action = &quot;upleftfire&quot;
+    elif angle_deg &lt; 292.5:
+        direction = &quot;up&quot;
+        fire_action = &quot;upfire&quot;
+    else:
+        direction = &quot;upright&quot;
+        fire_action = &quot;uprightfire&quot;
+    
+    # Fire when close enough AND reasonably well-aligned
+    if min_dist &lt; 120:
+        angle_to_cardinal = min(
+            abs(angle_deg),
+            abs(angle_deg - 45),
+            abs(angle_deg - 90),
+            abs(angle_deg - 135),
+            abs(angle_deg - 180),
+            abs(angle_deg - 225),
+            abs(angle_deg - 270),
+            abs(angle_deg - 315),
+            abs(360 - angle_deg)
+        )
+        
+        # Fire if within 45 degrees of a cardinal/diagonal direction
+        if angle_to_cardinal &lt; 45:
+            return fire_action
+    
+    # Move toward the nearest fish
+    return direction</code></pre>
+      </div>
+      <div class="code-pane" data-game="freeway">
+        <p class="code-head">Freeway &middot; score 22 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/freeway.py">champions/freeway.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    &quot;&quot;&quot;
+    Frogger-like game with stationary cars blocking the road.
+    
+    Strategy:
+    - Move UP toward y=0 (goal) when possible
+    - When blocked by stationary cars and stuck, move DOWN to reset
+    - Check all chickens to detect if progress is truly blocked
+    &quot;&quot;&quot;
+    objs = objects(state)
+    
+    chickens = objs.all(&quot;chicken&quot;)
+    if not chickens:
+        return &quot;noop&quot;
+    
+    cars = objs.all(&quot;car&quot;)
+    
+    # === COLLISION AVOIDANCE ===
+    # If touching a car, move down immediately
+    for chicken in chickens:
+        for car in cars:
+            if chicken.touches(car, margin=3):
+                return &quot;down&quot;
+    
+    # === PROXIMITY THREAT ===
+    # If any car is very close and approaching, escape down
+    for chicken in chickens:
+        for car in cars:
+            dist = chicken.distance_to(car)
+            if dist &lt; 12 and car.approaching(chicken):
+                return &quot;down&quot;
+    
+    # === STUCK DETECTION ===
+    # Track the best y-position achieved by any chicken
+    if &quot;_best_y&quot; not in state:
+        state[&quot;_best_y&quot;] = min(c.y for c in chickens)
+        state[&quot;_stuck_ticks&quot;] = 0
+    
+    current_best_y = min(c.y for c in chickens)
+    
+    if current_best_y &lt; state[&quot;_best_y&quot;]:
+        # Progress made: reset stuck counter
+        state[&quot;_best_y&quot;] = current_best_y
+        state[&quot;_stuck_ticks&quot;] = 0
+    else:
+        # No progress
+        state[&quot;_stuck_ticks&quot;] += 1
+    
+    # If stuck for too long, reset by moving down
+    if state[&quot;_stuck_ticks&quot;] &gt;= 4:
+        state[&quot;_stuck_ticks&quot;] = 0
+        state[&quot;_best_y&quot;] = min(c.y for c in chickens)
+        return &quot;down&quot;
+    
+    # === DEFAULT: MOVE UP ===
+    return &quot;up&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="flappy">
+        <p class="code-head">Flappy Bird &middot; score 311 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy.py">champions/flappy.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    bird = objs.get(&quot;bird&quot;)
+    
+    if bird is None:
+        return &quot;noop&quot;
+    
+    pipes = objs.all(&quot;pipe&quot;)
+    bird_y = bird.y
+    bird_dy = bird.dy
+    bird_x = bird.x
+    
+    # AGGRESSIVE ceiling avoidance: keep bird well away from top
+    # At y &lt; 80, never flap; at y &lt; 100 only in emergency
+    if bird_y &lt; 80:
+        return &quot;noop&quot;
+    
+    if bird_y &lt; 100 and bird_dy &lt; 0:
+        return &quot;noop&quot;
+    
+    # Hard ground bounds
+    if bird_y &gt; 500:
+        return &quot;flap&quot;
+    
+    if pipes:
+        # Filter pipes ahead of the bird
+        pipes_ahead = [p for p in pipes if p.x &gt; bird_x - 50]
+        
+        if pipes_ahead:
+            pipes_ahead.sort(key=lambda p: p.x)
+            
+            # Identify pipe pair: upper and lower pipe at similar x
+            next_upper = None
+            next_lower = None
+            
+            for i in range(len(pipes_ahead)):
+                for j in range(i + 1, len(pipes_ahead)):
+                    p1, p2 = pipes_ahead[i], pipes_ahead[j]
+                    if abs(p1.x - p2.x) &lt; 30:
+                        if p1.y &lt; p2.y:
+                            next_upper, next_lower = p1, p2
+                        else:
+                            next_upper, next_lower = p2, p1
+                        break
+                if next_upper:
+                    break
+            
+            if next_upper and next_lower:
+                # Gap geometry
+                upper_bottom = next_upper.y + next_upper.h / 2.0
+                lower_top = next_lower.y - next_lower.h / 2.0
+                gap_center = (upper_bottom + lower_top) / 2.0
+                gap_height = lower_top - upper_bottom
+                safe_margin = max(20, gap_height * 0.25)
+                
+                dist_to_pipe = next_upper.x - bird_x
+                
+                # Close range: precise emergency control only
+                if dist_to_pipe &lt; 80:
+                    if bird_y &lt; upper_bottom + safe_margin:
+                        return &quot;noop&quot;
+                    if bird_y &gt; lower_top - safe_margin:
+                        return &quot;flap&quot;
+                    return &quot;noop&quot;
+                
+                # Moderate range: steer toward center, but conservatively
+                elif dist_to_pipe &lt; 180:
+                    target = gap_center
+                    if bird_y &gt; target + 30:
+                        return &quot;flap&quot;
+                    if bird_dy &gt; 3.0 and bird_y &gt; target - 20:
+                        return &quot;noop&quot;
+                    return &quot;noop&quot;
+                
+                # Far range: position in middle of gap proactively
+                else:
+                    target_y = gap_center
+                    if bird_y &gt; target_y + 50:
+                        return &quot;flap&quot;
+                    if bird_dy &gt; 0.5:
+                        return &quot;noop&quot;
+                    return &quot;noop&quot;
+    
+    # No pipe ahead; maintain mid-altitude conservatively
+    if bird_y &gt; 280:
+        return &quot;flap&quot;
+    if bird_dy &gt; 1.5:
+        return &quot;noop&quot;
+    return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="pong_best">
+        <p class="code-head">Pong 21–0 &middot; the best of the three Pong runs &middot; score 21 &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/pong_best.py">champions/pong_best.py</a></p>
+        <pre><code class="language-python"># controller.py
+import math
+
+def policy(state):
+    objs = objects(state)
+    player = objs.get(&quot;player&quot;)
+    
+    if player is None:
+        return &#x27;noop&#x27;
+    
+    # Primary objective: track ball
+    ball = objs.get(&quot;ball&quot;)
+    
+    if ball is not None:
+        # Lookahead 1 tick to anticipate ball motion (more responsive)
+        lookahead_ticks = 1
+        predicted_ball_y = ball.y + ball.dy * lookahead_ticks
+        
+        # Vertical distance from player center to predicted ball position
+        dy = predicted_ball_y - player.y
+        
+        # Tighter threshold to reduce oscillation while maintaining responsiveness
+        threshold = 7
+        
+        if dy &gt; threshold:
+            return &#x27;down&#x27;
+        elif dy &lt; -threshold:
+            return &#x27;up&#x27;
+        else:
+            return &#x27;noop&#x27;
+    
+    # No ball present: hold position
+    return &#x27;noop&#x27;</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Transfer and Parameter Refitting</h2>
+    <div class="content has-text-centered">
+      <p>After a controller is learned, we change Flappy Bird's gravity and other dynamics. The
+         controller adapts in one of two ways. Often the program is robust enough to survive as
+         written. Otherwise our method refits only its numeric constants, with no
+         language-model calls. Reversed gravity is the exception since it needs a new program.</p>
+    </div>
+    <h3 class="title is-5 has-text-centered transfer-sub">Replayed unchanged</h3>
+    <div class="columns is-centered is-mobile is-multiline transfer-clips">
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_heavy.png"><source src="./static/videos/flappy_heavy.mp4" type="video/mp4"></video>
+            <p class="game-title">Heavier gravity</p>
+            <p class="clip-caption">Program unchanged. It survives the full episode.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_moon.png"><source src="./static/videos/flappy_moon.mp4" type="video/mp4"></video>
+            <p class="game-title">Light gravity</p>
+            <p class="clip-caption">Program unchanged. It survives the full episode.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_narrow.png"><source src="./static/videos/flappy_narrow.mp4" type="video/mp4"></video>
+            <p class="game-title">Narrower gap</p>
+            <p class="clip-caption">Program unchanged. It survives the full episode.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_inverted.png"><source src="./static/videos/flappy_inverted.mp4" type="video/mp4"></video>
+            <p class="game-title">Gravity reversed</p>
+            <p class="clip-caption">Program unchanged. It crashes at step 22, shown at half speed.</p>
+          </div>
+        </div>
+    </div>
+    <h3 class="title is-5 has-text-centered transfer-sub">Refitting the constants</h3>
+    <div class="content has-text-centered">
+      <p>Refitting adapts the program's constants, which lets it survive the full episode
+         again. Each tab plays the same stretch of the episode with the original constants and
+         with the refit ones. The code below shows that only numbers changed.</p>
+    </div>
+    <div id="code-refit" class="code-viewer">
+      <div class="buttons is-centered code-tabs">
+        <button class="button is-small is-rounded code-tab is-dark" data-game="refit-2-floaty" aria-pressed="true">Weaker flap</button><button class="button is-small is-rounded code-tab" data-game="refit-2-moon" aria-pressed="false">Light gravity</button><button class="button is-small is-rounded code-tab" data-game="refit-2-fast" aria-pressed="false">Faster pipes</button>
+      </div>
+      <div class="code-pane is-active" data-game="refit-2-floaty">
+        <div class="columns is-centered is-mobile transfer-clips">
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_floaty_frozen.png"><source src="./static/videos/flappy_floaty_frozen.mp4" type="video/mp4"></video>
+            <p class="game-title">Before refitting</p>
+            <p class="clip-caption">Program unchanged. It crashes at step 3,605.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_floaty_refit.png"><source src="./static/videos/flappy_floaty_refit.mp4" type="video/mp4"></video>
+            <p class="game-title">After refitting</p>
+            <p class="clip-caption">Constants refit. It survives the full episode.</p>
+          </div>
+        </div>
+        </div>
+        <p class="code-head">Run 2 &middot; 4 constants changed &middot; original: <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run2.py">champions/flappy_transfer/run2.py</a></p>
+        <pre><code class="language-diff"> # controller.py
+ import math
+ 
+ def policy(state):
+     bird = objects(state).get(&quot;bird&quot;)
+     pipes = objects(state).all(&quot;pipe&quot;)
+     
+     if bird is None:
+         return &quot;noop&quot;
+     
+-    if len(pipes) &lt; 2:
++    if len(pipes) &lt; 1.8:
+         return &quot;noop&quot;
+     
+     bird_x = bird.x
+     bird_y = bird.y
+     bird_dy = bird.dy
+     
+     # Find the next pipe pair ahead (or current) relative to bird
+     # Pipes come in pairs: [0,1], [2,3], etc. (top, bottom)
+     # Find the pair where the bird will soon need to fit through
+-    next_pair_idx = 0
++    next_pair_idx = -1
+     min_distance = float(&#x27;inf&#x27;)
+     
+     for i in range(0, len(pipes) - 1, 2):
+         top_pipe = pipes[i]
+         bottom_pipe = pipes[i + 1]
+         
+         # Use the rightmost edge of the pipe pair as reference
+-        pipe_right = max(top_pipe.x + top_pipe.w / 2.0, bottom_pipe.x + bottom_pipe.w / 2.0)
++        pipe_right = max(top_pipe.x + top_pipe.w / 1.8, bottom_pipe.x + bottom_pipe.w / 1.8)
+         
+         # We care about pipes that are ahead of or very close to the bird
+-        if pipe_right &gt;= bird_x - 50:  # Lookahead margin
++        if pipe_right &gt;= bird_x - 25:  # Lookahead margin
+             distance = pipe_right - bird_x
+             if distance &lt; min_distance:
+                 min_distance = distance
+                 next_pair_idx = i
+     
+     top_pipe = pipes[next_pair_idx]
+     bottom_pipe = pipes[next_pair_idx + 1]
+     
+     # Calculate gap boundaries
+-    gap_top = top_pipe.y + top_pipe.h / 2.0      # bottom edge of top pipe
+-    gap_bottom = bottom_pipe.y - bottom_pipe.h / 2.0  # top edge of bottom pipe
+-    gap_center = (gap_top + gap_bottom) / 2.0
++    gap_top = top_pipe.y + top_pipe.h / 1.8      # bottom edge of top pipe
++    gap_bottom = bottom_pipe.y - bottom_pipe.h / 1.8  # top edge of bottom pipe
++    gap_center = (gap_top + gap_bottom) / 1.8
+     
+     # Safety margins (in pixels)
+-    safe_margin = 15.0
++    safe_margin = -60
+     
+     # Flap if bird is below safe center OR falling toward bottom pipe
+     # Don&#x27;t flap if already above the gap center (avoid over-rising)
+-    if bird_y &gt; gap_center + safe_margin and bird_dy &gt;= -2.0:
++    if bird_y &gt; gap_center + safe_margin and bird_dy &gt;= -1.8:
+         return &quot;flap&quot;
+     
+     return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="refit-2-moon">
+        <div class="columns is-centered is-mobile transfer-clips">
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_moon_frozen.png"><source src="./static/videos/flappy_moon_frozen.mp4" type="video/mp4"></video>
+            <p class="game-title">Before refitting</p>
+            <p class="clip-caption">Program unchanged. It crashes at step 18,133.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_moon_refit.png"><source src="./static/videos/flappy_moon_refit.mp4" type="video/mp4"></video>
+            <p class="game-title">After refitting</p>
+            <p class="clip-caption">Constants refit. It survives the full episode.</p>
+          </div>
+        </div>
+        </div>
+        <p class="code-head">Run 2 &middot; 4 constants changed &middot; original: <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run2.py">champions/flappy_transfer/run2.py</a></p>
+        <pre><code class="language-diff"> # controller.py
+ import math
+ 
+ def policy(state):
+     bird = objects(state).get(&quot;bird&quot;)
+     pipes = objects(state).all(&quot;pipe&quot;)
+     
+     if bird is None:
+         return &quot;noop&quot;
+     
+-    if len(pipes) &lt; 2:
++    if len(pipes) &lt; 1.8:
+         return &quot;noop&quot;
+     
+     bird_x = bird.x
+     bird_y = bird.y
+     bird_dy = bird.dy
+     
+     # Find the next pipe pair ahead (or current) relative to bird
+     # Pipes come in pairs: [0,1], [2,3], etc. (top, bottom)
+     # Find the pair where the bird will soon need to fit through
+-    next_pair_idx = 0
++    next_pair_idx = -1
+     min_distance = float(&#x27;inf&#x27;)
+     
+     for i in range(0, len(pipes) - 1, 2):
+         top_pipe = pipes[i]
+         bottom_pipe = pipes[i + 1]
+         
+         # Use the rightmost edge of the pipe pair as reference
+-        pipe_right = max(top_pipe.x + top_pipe.w / 2.0, bottom_pipe.x + bottom_pipe.w / 2.0)
++        pipe_right = max(top_pipe.x + top_pipe.w / 1.8, bottom_pipe.x + bottom_pipe.w / 1.8)
+         
+         # We care about pipes that are ahead of or very close to the bird
+-        if pipe_right &gt;= bird_x - 50:  # Lookahead margin
++        if pipe_right &gt;= bird_x - 6.25:  # Lookahead margin
+             distance = pipe_right - bird_x
+             if distance &lt; min_distance:
+                 min_distance = distance
+                 next_pair_idx = i
+     
+     top_pipe = pipes[next_pair_idx]
+     bottom_pipe = pipes[next_pair_idx + 1]
+     
+     # Calculate gap boundaries
+-    gap_top = top_pipe.y + top_pipe.h / 2.0      # bottom edge of top pipe
+-    gap_bottom = bottom_pipe.y - bottom_pipe.h / 2.0  # top edge of bottom pipe
+-    gap_center = (gap_top + gap_bottom) / 2.0
++    gap_top = top_pipe.y + top_pipe.h / 1.8      # bottom edge of top pipe
++    gap_bottom = bottom_pipe.y - bottom_pipe.h / 1.8  # top edge of bottom pipe
++    gap_center = (gap_top + gap_bottom) / 1.8
+     
+     # Safety margins (in pixels)
+-    safe_margin = 15.0
++    safe_margin = -15
+     
+     # Flap if bird is below safe center OR falling toward bottom pipe
+     # Don&#x27;t flap if already above the gap center (avoid over-rising)
+-    if bird_y &gt; gap_center + safe_margin and bird_dy &gt;= -2.0:
++    if bird_y &gt; gap_center + safe_margin and bird_dy &gt;= -1.8:
+         return &quot;flap&quot;
+     
+     return &quot;noop&quot;</code></pre>
+      </div>
+      <div class="code-pane" data-game="refit-2-fast">
+        <div class="columns is-centered is-mobile transfer-clips">
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_fast_frozen.png"><source src="./static/videos/flappy_fast_frozen.mp4" type="video/mp4"></video>
+            <p class="game-title">Before refitting</p>
+            <p class="clip-caption">Program unchanged. It crashes at step 18,117.</p>
+          </div>
+        </div>
+        <div class="column is-one-quarter-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/flappy_fast_refit.png"><source src="./static/videos/flappy_fast_refit.mp4" type="video/mp4"></video>
+            <p class="game-title">After refitting</p>
+            <p class="clip-caption">Constants refit. It survives the full episode.</p>
+          </div>
+        </div>
+        </div>
+        <p class="code-head">Run 2 &middot; 3 constants changed &middot; original: <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run2.py">champions/flappy_transfer/run2.py</a></p>
+        <pre><code class="language-diff"> # controller.py
+ import math
+ 
+ def policy(state):
+     bird = objects(state).get(&quot;bird&quot;)
+     pipes = objects(state).all(&quot;pipe&quot;)
+     
+     if bird is None:
+         return &quot;noop&quot;
+     
+     if len(pipes) &lt; 2:
+         return &quot;noop&quot;
+     
+     bird_x = bird.x
+     bird_y = bird.y
+     bird_dy = bird.dy
+     
+     # Find the next pipe pair ahead (or current) relative to bird
+     # Pipes come in pairs: [0,1], [2,3], etc. (top, bottom)
+     # Find the pair where the bird will soon need to fit through
+-    next_pair_idx = 0
++    next_pair_idx = -1
+     min_distance = float(&#x27;inf&#x27;)
+     
+     for i in range(0, len(pipes) - 1, 2):
+         top_pipe = pipes[i]
+         bottom_pipe = pipes[i + 1]
+         
+         # Use the rightmost edge of the pipe pair as reference
+         pipe_right = max(top_pipe.x + top_pipe.w / 2.0, bottom_pipe.x + bottom_pipe.w / 2.0)
+         
+         # We care about pipes that are ahead of or very close to the bird
+-        if pipe_right &gt;= bird_x - 50:  # Lookahead margin
++        if pipe_right &gt;= bird_x - 25:  # Lookahead margin
+             distance = pipe_right - bird_x
+             if distance &lt; min_distance:
+                 min_distance = distance
+                 next_pair_idx = i
+     
+     top_pipe = pipes[next_pair_idx]
+     bottom_pipe = pipes[next_pair_idx + 1]
+     
+     # Calculate gap boundaries
+     gap_top = top_pipe.y + top_pipe.h / 2.0      # bottom edge of top pipe
+     gap_bottom = bottom_pipe.y - bottom_pipe.h / 2.0  # top edge of bottom pipe
+     gap_center = (gap_top + gap_bottom) / 2.0
+     
+     # Safety margins (in pixels)
+-    safe_margin = 15.0
++    safe_margin = -16.875
+     
+     # Flap if bird is below safe center OR falling toward bottom pipe
+     # Don&#x27;t flap if already above the gap center (avoid over-rising)
+     if bird_y &gt; gap_center + safe_margin and bird_dy &gt;= -2.0:
+         return &quot;flap&quot;
+     
+     return &quot;noop&quot;</code></pre>
+      </div>
+    </div>
+    <div class="table-container transfer-table">
+      <table class="table is-narrow is-fullwidth">
+        <thead><tr><th>Physics change</th><th><a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run1.py">Run 1</a></th><th><a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run2.py">Run 2</a></th><th><a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/flappy_transfer/run3.py">Run 3</a></th></tr></thead>
+        <tbody>
+          <tr><td>Heavier gravity <span class="change-detail">gravity &times;1.5</span></td><td class="full">&#10003;</td><td class="full">&#10003;</td><td class="full">&#10003;</td></tr><tr><td>Drag</td><td class="full">&#10003;</td><td class="full">&#10003;</td><td class="full">&#10003;</td></tr><tr><td>Heavier gravity mid-flight <span class="change-detail">gravity &times;1.5 from step 500</span></td><td class="full">&#10003;</td><td class="full">&#10003;</td><td class="full">&#10003;</td></tr><tr><td>Narrower gap <span class="change-detail">gap &times;0.71</span></td><td class="full">&#10003;</td><td class="full">&#10003;</td><td class="full">&#10003;</td></tr><tr><td>Weaker flap <span class="change-detail">flap strength &times;0.61</span></td><td class="full">&#10003;</td><td class="full">3,605 <span class="refit">&rarr;&nbsp;&#10003;</span></td><td class="full">&#10003;</td></tr><tr><td>Light gravity <span class="change-detail">gravity &times;0.5, flap strength &times;0.6</span></td><td class="full">&#10003;</td><td class="full">18,133 <span class="refit">&rarr;&nbsp;&#10003;</span></td><td class="part">8,853 <span class="refit">&rarr;&nbsp;17,109</span></td></tr><tr><td>Faster pipes <span class="change-detail">pipe speed &times;1.5</span></td><td class="full">&#10003;</td><td class="full">18,117 <span class="refit">&rarr;&nbsp;&#10003;</span></td><td class="part">530 <span class="refit">&rarr;&nbsp;1,691</span></td></tr><tr><td>Gravity reversed</td><td class="part">22 <span class="refit">&rarr;&nbsp;27</span></td><td class="part">22 <span class="refit">&rarr;&nbsp;27</span></td><td class="part">22 <span class="refit">&rarr;&nbsp;27</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="content has-text-centered is-size-7 has-text-grey mujoco-note">
+      <p>Steps survived, before &rarr; after numerical parameter refitting. &#10003; is the
+         full 20,000-step episode.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Continuous Control in MuJoCo</h2>
+    <div class="content has-text-centered">
+      <p>Here the controller outputs torques. The model writes a Python feature map that turns
+         the observation into 14 numbers, and derivative-free search fits the matrix that maps them to
+         torques.</p>
+    </div>
+    <div class="columns is-multiline is-centered is-mobile">
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/halfcheetah.png"><source src="./static/videos/mujoco/halfcheetah.mp4" type="video/mp4"></video>
+            <p class="game-title">HalfCheetah</p>
+            <p class="game-score">return 3,958.95 &middot; 212.55&nbsp;m forward</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="halfcheetah">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/swimmer.png"><source src="./static/videos/mujoco/swimmer.mp4" type="video/mp4"></video>
+            <p class="game-title">Swimmer</p>
+            <p class="game-score">return 320.53 &middot; 12.83&nbsp;m forward</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="swimmer">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/ant.png"><source src="./static/videos/mujoco/ant.mp4" type="video/mp4"></video>
+            <p class="game-title">Ant</p>
+            <p class="game-score">return 1,003.93 &middot; 10.47&nbsp;m forward</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="ant">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/hopper.png"><source src="./static/videos/mujoco/hopper.mp4" type="video/mp4"></video>
+            <p class="game-title">Hopper</p>
+            <p class="game-score">return 1,155.40 &middot; 1.46&nbsp;m forward</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="hopper">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/walker2d.png"><source src="./static/videos/mujoco/walker2d.mp4" type="video/mp4"></video>
+            <p class="game-title">Walker2d</p>
+            <p class="game-score">return 1,388.54 &middot; 3.12&nbsp;m forward</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="walker2d">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/humanoid.png"><source src="./static/videos/mujoco/humanoid.mp4" type="video/mp4"></video>
+            <p class="game-title">Humanoid</p>
+            <p class="game-score">return 472.92 &middot; &minus;0.44&nbsp;m forward</p>
+            <p class="is-size-7 has-text-grey">The median episode ends after 1.5&nbsp;s, when the body falls.</p>
+            <a class="read-code" href="#code-mujoco" data-game="humanoid">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/humanoidstandup.png"><source src="./static/videos/mujoco/humanoidstandup.mp4" type="video/mp4"></video>
+            <p class="game-title">Humanoid Standup</p>
+            <p class="game-score">return 127,370</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="humanoidstandup">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/invertedpendulum.png"><source src="./static/videos/mujoco/invertedpendulum.mp4" type="video/mp4"></video>
+            <p class="game-title">Inverted Pendulum</p>
+            <p class="game-score">return 1,000.00</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="invertedpendulum">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/inverteddoublependulum.png"><source src="./static/videos/mujoco/inverteddoublependulum.mp4" type="video/mp4"></video>
+            <p class="game-title">Inverted Double Pendulum</p>
+            <p class="game-score">return 9,358.85</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="inverteddoublependulum">View the feature map</a>
+          </div>
+        </div>
+        <div class="column is-one-third-desktop is-half-tablet is-half-mobile">
+          <div class="game-card">
+            <video autoplay muted loop playsinline class="game-video" poster="./static/images/posters/mujoco/reacher.png"><source src="./static/videos/mujoco/reacher.mp4" type="video/mp4"></video>
+            <p class="game-title">Reacher</p>
+            <p class="game-score">return &minus;9.24</p>
+            
+            <a class="read-code" href="#code-mujoco" data-game="reacher">View the feature map</a>
+          </div>
+        </div>
+    </div>
+    <div class="content has-text-centered is-size-7 has-text-grey mujoco-note">
+      <p>Returns are medians over ten test episodes.</p>
+    </div>
+    <div id="code-mujoco" class="code-viewer">
+      <div class="buttons is-centered code-tabs">
+        <button class="button is-small is-rounded code-tab is-dark" data-game="halfcheetah" aria-pressed="true">HalfCheetah</button><button class="button is-small is-rounded code-tab" data-game="swimmer" aria-pressed="false">Swimmer</button><button class="button is-small is-rounded code-tab" data-game="ant" aria-pressed="false">Ant</button><button class="button is-small is-rounded code-tab" data-game="hopper" aria-pressed="false">Hopper</button><button class="button is-small is-rounded code-tab" data-game="walker2d" aria-pressed="false">Walker2d</button><button class="button is-small is-rounded code-tab" data-game="humanoid" aria-pressed="false">Humanoid</button><button class="button is-small is-rounded code-tab" data-game="humanoidstandup" aria-pressed="false">Humanoid Standup</button><button class="button is-small is-rounded code-tab" data-game="invertedpendulum" aria-pressed="false">Inverted Pendulum</button><button class="button is-small is-rounded code-tab" data-game="inverteddoublependulum" aria-pressed="false">Inverted Double Pendulum</button><button class="button is-small is-rounded code-tab" data-game="reacher" aria-pressed="false">Reacher</button>
+      </div>
+      <div class="code-pane is-active" data-game="halfcheetah">
+        <p class="code-head">HalfCheetah &middot; return 3,958.95 &middot; 212.55&nbsp;m forward &middot; 14 features, fitted 6&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/halfcheetah.json">halfcheetah.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/halfcheetah.py">champions/mujoco/halfcheetah.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+        except Exception:
+            return 0.0
+        if v is None:
+            return 0.0
+        try:
+            f = float(v)
+        except Exception:
+            return 0.0
+        if not math.isfinite(f):
+            return 0.0
+        return f
+
+    # raw positions
+    rootz = g(&#x27;rootz&#x27;)
+    rooty = g(&#x27;rooty&#x27;)
+    bthigh = g(&#x27;bthigh&#x27;)
+    bshin = g(&#x27;bshin&#x27;)
+    bfoot = g(&#x27;bfoot&#x27;)
+    fthigh = g(&#x27;fthigh&#x27;)
+    fshin = g(&#x27;fshin&#x27;)
+    ffoot = g(&#x27;ffoot&#x27;)
+
+    # velocities
+    vx = g(&#x27;rootx_velocity&#x27;)
+    vz = g(&#x27;rootz_velocity&#x27;)
+    wy = g(&#x27;rooty_angular_velocity&#x27;)
+    wbt = g(&#x27;bthigh_angular_velocity&#x27;)
+    wbs = g(&#x27;bshin_angular_velocity&#x27;)
+    wbf = g(&#x27;bfoot_angular_velocity&#x27;)
+    wft = g(&#x27;fthigh_angular_velocity&#x27;)
+    wfs = g(&#x27;fshin_angular_velocity&#x27;)
+    wff = g(&#x27;ffoot_angular_velocity&#x27;)
+
+    def sat(x, s=1.0):
+        return math.tanh(x / s)
+
+    out = []
+    # 0: constant bias
+    out.append(1.0)
+    # 1: root height (posture)
+    out.append(sat(rootz, 0.2))
+    # 2: root pitch angle
+    out.append(sat(rooty, 0.3))
+    # 3: sum of back-leg joint angles
+    out.append(sat(bthigh + bshin + bfoot, 1.0))
+    # 4: sum of front-leg joint angles
+    out.append(sat(fthigh + fshin + ffoot, 1.0))
+    # 5: forward velocity (drives reward)
+    out.append(sat(vx, 1.0))
+    # 6: vertical velocity
+    out.append(sat(vz, 1.0))
+    # 7: pitch angular velocity
+    out.append(sat(wy, 2.0))
+    # 8: combined back-leg angular velocities
+    out.append(sat(wbt + wbs + wbf, 10.0))
+    # 9: combined front-leg angular velocities
+    out.append(sat(wft + wfs + wff, 10.0))
+    # 10: coupling term (posture x forward velocity)
+    out.append(sat(rooty * vx, 0.5))
+    # 11: periodic gait clock
+    out.append(math.sin(0.3 * t))
+    # 12: periodic gait clock, second frequency / phase
+    out.append(math.cos(0.15 * t))
+    # 13: front-back leg antisymmetry (differential drive)
+    out.append(sat((fthigh - bthigh) + 0.5 * (fshin - bshin), 1.0))
+
+    return [x if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="swimmer">
+        <p class="code-head">Swimmer &middot; return 320.53 &middot; 12.83&nbsp;m forward &middot; 14 features, fitted 2&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/swimmer.json">swimmer.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/swimmer.py">champions/mujoco/swimmer.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+            if v is None:
+                return 0.0
+            v = float(v)
+            if not math.isfinite(v):
+                return 0.0
+            return v
+        except Exception:
+            return 0.0
+
+    ta = g(&#x27;tip_angle&#x27;)
+    r1 = g(&#x27;rotor1_angle&#x27;)
+    r2 = g(&#x27;rotor2_angle&#x27;)
+    vx = g(&#x27;tip_velocity_x&#x27;)
+    vy = g(&#x27;tip_velocity_y&#x27;)
+    wt = g(&#x27;tip_angular_velocity&#x27;)
+    w1 = g(&#x27;rotor1_angular_velocity&#x27;)
+    w2 = g(&#x27;rotor2_angular_velocity&#x27;)
+
+    def clip(x, lo=-3.0, hi=3.0):
+        return max(lo, min(hi, x))
+
+    out = []
+    # 1. constant bias
+    out.append(1.0)
+    # 2. tip angle
+    out.append(clip(ta))
+    # 3. sin of tip angle (gravity-like restoring)
+    out.append(math.sin(ta))
+    # 4. rotor angle difference
+    out.append(clip(r1 - r2))
+    # 5. tip angular velocity
+    out.append(clip(wt))
+    # 6. rotor1 angular velocity (scaled)
+    out.append(clip(0.2 * w1))
+    # 7. rotor2 angular velocity (scaled)
+    out.append(clip(0.2 * w2))
+    # 8. tip vy
+    out.append(clip(vy))
+    # 9. tip vx
+    out.append(clip(vx))
+    # 10. product tip_angle * tip_angular_velocity
+    out.append(clip(ta * wt))
+    # 11. difference of rotor angular velocities (scaled)
+    out.append(clip(0.15 * (w1 - w2)))
+    # 12. periodic term
+    out.append(math.sin(0.3 * t))
+    # 13. second periodic term, different freq + phase
+    out.append(math.cos(0.11 * t + 1.0))
+    # 14. saturating combined velocity magnitude
+    out.append(math.tanh(0.3 * (abs(wt) + abs(vy))))
+
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="ant">
+        <p class="code-head">Ant &middot; return 1,003.93 &middot; 10.47&nbsp;m forward &middot; 14 features, fitted 8&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/ant.json">ant.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/ant.py">champions/mujoco/ant.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0] if isinstance(state[k], (list, tuple)) else state[k]
+            v = float(v)
+            if not math.isfinite(v):
+                return 0.0
+            return v
+        except Exception:
+            return 0.0
+
+    def clip(x, lo=-3.0, hi=3.0):
+        if x &lt; lo: return lo
+        if x &gt; hi: return hi
+        return x
+
+    rz = g(&#x27;root_z&#x27;)
+    qw = g(&#x27;root_quat_w&#x27;)
+    qx = g(&#x27;root_quat_x&#x27;)
+    qy = g(&#x27;root_quat_y&#x27;)
+    qz = g(&#x27;root_quat_z&#x27;)
+
+    h1, h2, h3, h4 = g(&#x27;hip_1&#x27;), g(&#x27;hip_2&#x27;), g(&#x27;hip_3&#x27;), g(&#x27;hip_4&#x27;)
+    a1, a2, a3, a4 = g(&#x27;ankle_1&#x27;), g(&#x27;ankle_2&#x27;), g(&#x27;ankle_3&#x27;), g(&#x27;ankle_4&#x27;)
+
+    vx, vy, vz = g(&#x27;root_velocity_x&#x27;), g(&#x27;root_velocity_y&#x27;), g(&#x27;root_velocity_z&#x27;)
+    wx, wy, wz = g(&#x27;root_angular_velocity_x&#x27;), g(&#x27;root_angular_velocity_y&#x27;), g(&#x27;root_angular_velocity_z&#x27;)
+
+    hv1 = g(&#x27;hip_1_angular_velocity&#x27;)
+    av1 = g(&#x27;ankle_1_angular_velocity&#x27;)
+    hv2 = g(&#x27;hip_2_angular_velocity&#x27;)
+    av2 = g(&#x27;ankle_2_angular_velocity&#x27;)
+    hv3 = g(&#x27;hip_3_angular_velocity&#x27;)
+    av3 = g(&#x27;ankle_3_angular_velocity&#x27;)
+    hv4 = g(&#x27;hip_4_angular_velocity&#x27;)
+    av4 = g(&#x27;ankle_4_angular_velocity&#x27;)
+
+    out = []
+    # 1. constant bias
+    out.append(1.0)
+    # 2. raw height, centered near typical standing ~0.9
+    out.append(clip(rz - 0.9))
+    # 3. tilt proxy: deviation of upright quaternion
+    out.append(clip(1.0 - qw))
+    # 4. combined joint posture (mean hip)
+    out.append(clip(0.25 * (h1 + h2 + h3 + h4)))
+    # 5. mean ankle posture
+    out.append(clip(0.25 * (a1 + a2 + a3 + a4)))
+    # 6. linear velocity magnitude (saturated)
+    out.append(math.tanh(math.sqrt(vx*vx + vy*vy + vz*vz)))
+    # 7. angular velocity of body, tanh-squashed sum
+    out.append(math.tanh(wx + wy + wz))
+    # 8. periodic term, base frequency
+    out.append(math.sin(0.2 * t))
+    # 9. periodic term, second frequency + phase shift
+    out.append(math.cos(0.07 * t + 0.5))
+    # 10. product/coupling: tilt * forward velocity
+    out.append(clip(qx * vx + qy * vy))
+    # 11. joint-velocity aggregate (tanh)
+    out.append(math.tanh(0.1 * (hv1 + hv2 + hv3 + hv4)))
+    # 12. ankle-velocity aggregate (tanh)
+    out.append(math.tanh(0.1 * (av1 + av2 + av3 + av4)))
+    # 13. quaternion yaw component (raw)
+    out.append(clip(qz))
+    # 14. saturating growth in t
+    out.append(math.tanh(0.01 * t))
+
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="hopper">
+        <p class="code-head">Hopper &middot; return 1,155.40 &middot; 1.46&nbsp;m forward &middot; 14 features, fitted 3&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/hopper.json">hopper.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/hopper.py">champions/mujoco/hopper.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+            if v is None:
+                return 0.0
+            v = float(v)
+            if not math.isfinite(v):
+                return 0.0
+            return v
+        except Exception:
+            return 0.0
+
+    def clip(x, lo=-3.0, hi=3.0):
+        if x &lt; lo: return lo
+        if x &gt; hi: return hi
+        return x
+
+    h    = g(&#x27;torso_height&#x27;)
+    ta   = g(&#x27;torso_angle&#x27;)
+    tha  = g(&#x27;thigh_angle&#x27;)
+    la   = g(&#x27;leg_angle&#x27;)
+    fa   = g(&#x27;foot_angle&#x27;)
+    vx   = g(&#x27;torso_velocity_x&#x27;)
+    vz   = g(&#x27;torso_velocity_z&#x27;)
+    tav  = g(&#x27;torso_angular_velocity&#x27;)
+    thav = g(&#x27;thigh_angular_velocity&#x27;)
+    lav  = g(&#x27;leg_angular_velocity&#x27;)
+    fav  = g(&#x27;foot_angular_velocity&#x27;)
+
+    out = []
+    # 0: constant bias
+    out.append(1.0)
+    # 1: torso height deviation from upright (~1.25 nominal)
+    out.append(clip(h - 1.25))
+    # 2: torso angle (posture)
+    out.append(clip(ta))
+    # 3: thigh angle
+    out.append(clip(tha))
+    # 4: leg angle
+    out.append(clip(la))
+    # 5: foot angle
+    out.append(clip(fa))
+    # 6: torso angular velocity (normalised)
+    out.append(clip(tav / 4.0))
+    # 7: thigh angular velocity (normalised)
+    out.append(clip(thav / 4.0))
+    # 8: leg + foot angular velocity combo (normalised)
+    out.append(clip((lav + fav) / 4.0))
+    # 9: horizontal velocity
+    out.append(clip(vx))
+    # 10: product of torso angle and angular velocity (damping-ish)
+    out.append(clip(ta * tav))
+    # 11: periodic term
+    out.append(math.sin(2.0 * math.pi * t / 20.0))
+    # 12: second periodic term, different freq + phase
+    out.append(math.cos(2.0 * math.pi * t / 7.0 + 0.5))
+    # 13: saturating nonlinearity of posture (angle sum)
+    out.append(math.tanh(ta + tha + la))
+
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="walker2d">
+        <p class="code-head">Walker2d &middot; return 1,388.54 &middot; 3.12&nbsp;m forward &middot; 14 features, fitted 6&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/walker2d.json">walker2d.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/walker2d.py">champions/mujoco/walker2d.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+        except Exception:
+            return 0.0
+        if v is None or not math.isfinite(v):
+            return 0.0
+        return float(v)
+
+    def clip(x, lo=-1.0, hi=1.0):
+        return lo if x &lt; lo else (hi if x &gt; hi else x)
+
+    # Raw postural fields
+    th = g(&#x27;torso_height&#x27;)
+    ta = g(&#x27;torso_angle&#x27;)
+    rt = g(&#x27;right_thigh_angle&#x27;)
+    lt = g(&#x27;left_thigh_angle&#x27;)
+    rl = g(&#x27;right_leg_angle&#x27;)
+    ll = g(&#x27;left_leg_angle&#x27;)
+
+    # Velocities (scaled to O(1); angular velocities saturate at +-10)
+    tvx = g(&#x27;torso_velocity_x&#x27;)
+    tvz = g(&#x27;torso_velocity_z&#x27;)
+    tav = g(&#x27;torso_angular_velocity&#x27;) / 10.0
+    rtav = g(&#x27;right_thigh_angular_velocity&#x27;) / 10.0
+    ltav = g(&#x27;left_thigh_angular_velocity&#x27;) / 10.0
+
+    out = []
+    # 0: constant bias
+    out.append(1.0)
+    # 1: torso upright error (height offset from ~1.25 nominal)
+    out.append(clip(th - 1.25, -2.0, 2.0))
+    # 2: torso lean angle
+    out.append(clip(ta, -3.0, 3.0))
+    # 3: torso angular velocity (normalised)
+    out.append(clip(tav, -1.5, 1.5))
+    # 4: left-right thigh difference (drives symmetric gait)
+    out.append(clip(rt - lt, -3.0, 3.0))
+    # 5: left-right leg difference
+    out.append(clip(rl - ll, -3.0, 3.0))
+    # 6: forward velocity
+    out.append(clip(tvx, -3.0, 3.0))
+    # 7: vertical velocity
+    out.append(clip(tvz, -3.0, 3.0))
+    # 8: periodic drive (primary gait frequency)
+    out.append(math.sin(2.0 * math.pi * t / 20.0))
+    # 9: periodic drive, phase-shifted (quadrature)
+    out.append(math.cos(2.0 * math.pi * t / 20.0))
+    # 10: periodic drive, slower frequency
+    out.append(math.sin(2.0 * math.pi * t / 47.0))
+    # 11: product of lean and angular velocity (restoring/damping coupling)
+    out.append(clip(ta * tav, -3.0, 3.0))
+    # 12: thigh angular-velocity asymmetry
+    out.append(clip(rtav - ltav, -2.0, 2.0))
+    # 13: saturating height-times-lean (fall indicator via tanh-like)
+    out.append(math.tanh(ta * (1.25 - th)))
+
+    # Final safety pass
+    safe = []
+    for v in out:
+        if not math.isfinite(v):
+            v = 0.0
+        safe.append(float(v))
+    return safe</code></pre>
+      </div>
+      <div class="code-pane" data-game="humanoid">
+        <p class="code-head">Humanoid &middot; return 472.92 &middot; &minus;0.44&nbsp;m forward &middot; 14 features, fitted 17&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/humanoid.json">humanoid.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/humanoid.py">champions/mujoco/humanoid.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k, d=0.0):
+        try:
+            v = state.get(k, d)
+            if isinstance(v, list):
+                v = v[0] if v else d
+            v = float(v)
+            if not math.isfinite(v):
+                return d
+            return v
+        except Exception:
+            return d
+
+    def clip(x, lo=-5.0, hi=5.0):
+        if not math.isfinite(x):
+            return 0.0
+        return lo if x &lt; lo else (hi if x &gt; hi else x)
+
+    # raw pose fields (normalised-ish)
+    root_z = g(&quot;root_z&quot;, 1.0)
+    abdomen_y = g(&quot;abdomen_y&quot;)
+    r_knee = g(&quot;right_knee&quot;)
+    l_knee = g(&quot;left_knee&quot;)
+    r_hip_y = g(&quot;right_hip_y&quot;)
+    l_hip_y = g(&quot;left_hip_y&quot;)
+
+    # velocities
+    rvz = g(&quot;root_velocity_z&quot;)
+    ravy = g(&quot;root_angular_velocity_y&quot;)
+    aby_av = g(&quot;abdomen_y_angular_velocity&quot;)
+    r_knee_av = g(&quot;right_knee_angular_velocity&quot;)
+    l_knee_av = g(&quot;left_knee_angular_velocity&quot;)
+
+    out = []
+    # 1: constant bias
+    out.append(1.0)
+    # 2: upright height error (saturating)
+    out.append(clip(root_z - 1.2))
+    # 3: torso pitch
+    out.append(clip(abdomen_y))
+    # 4: knee difference (asymmetry)
+    out.append(clip(0.5 * (r_knee - l_knee)))
+    # 5: hip_y sum (both legs forward/back)
+    out.append(clip(0.3 * (r_hip_y + l_hip_y)))
+    # 6: vertical velocity (falling), clipped
+    out.append(clip(0.3 * rvz))
+    # 7: angular velocity y (tumbling), tanh-saturated
+    out.append(math.tanh(0.2 * ravy))
+    # 8: abdomen angular velocity, tanh
+    out.append(math.tanh(0.1 * aby_av))
+    # 9: knee angular velocity sum
+    out.append(math.tanh(0.1 * (r_knee_av + l_knee_av)))
+    # 10: periodic term (gait clock)
+    out.append(math.sin(0.3 * t))
+    # 11: periodic term, different freq / phase
+    out.append(math.cos(0.15 * t))
+    # 12: product of pitch and vertical velocity (coupling)
+    out.append(clip(math.tanh(abdomen_y) * math.tanh(0.3 * rvz)))
+    # 13: quadratic height penalty (saturating bowl)
+    dz = root_z - 1.2
+    out.append(clip(-(dz * dz)))
+    # 14: slow saturating growth toward 1
+    out.append(math.tanh(0.01 * t))
+
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="humanoidstandup">
+        <p class="code-head">Humanoid Standup &middot; return 127,370 &middot; 14 features, fitted 17&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/humanoidstandup.json">humanoidstandup.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/humanoidstandup.py">champions/mujoco/humanoidstandup.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k, d=0.0):
+        try:
+            v = state.get(k, d)
+            if isinstance(v, list):
+                v = v[0]
+            v = float(v)
+            if not math.isfinite(v):
+                return d
+            return v
+        except Exception:
+            return d
+
+    def clip(x, lo=-5.0, hi=5.0):
+        if x &lt; lo: return lo
+        if x &gt; hi: return hi
+        return x
+
+    def sat(x):
+        # smooth saturating nonlinearity, O(1)
+        return math.tanh(x)
+
+    # raw postural state
+    rz = g(&#x27;root_z&#x27;)
+    ab_y = g(&#x27;abdomen_y&#x27;)
+    ab_x = g(&#x27;abdomen_x&#x27;)
+    rhy = g(&#x27;right_hip_y&#x27;)
+    lhy = g(&#x27;left_hip_y&#x27;)
+    rk = g(&#x27;right_knee&#x27;)
+    lk = g(&#x27;left_knee&#x27;)
+    qw = g(&#x27;root_quat_w&#x27;, 1.0)
+    qx = g(&#x27;root_quat_x&#x27;)
+    qz = g(&#x27;root_quat_z&#x27;)
+
+    # velocities
+    rvx = g(&#x27;root_velocity_x&#x27;)
+    rvz = g(&#x27;root_velocity_z&#x27;)
+    ravx = g(&#x27;root_angular_velocity_x&#x27;)
+    ravy = g(&#x27;root_angular_velocity_y&#x27;)
+    abyv = g(&#x27;abdomen_y_angular_velocity&#x27;)
+    rhyv = g(&#x27;right_hip_y_angular_velocity&#x27;)
+    lhyv = g(&#x27;left_hip_y_angular_velocity&#x27;)
+
+    out = []
+
+    # 1. constant bias
+    out.append(1.0)
+
+    # 2. root height deviation from nominal (~0.1) -- upright drive
+    out.append(clip((rz - 0.1) * 10.0))
+
+    # 3. torso pitch (abdomen_y) -- posture
+    out.append(clip(ab_y))
+
+    # 4. torso roll (abdomen_x)
+    out.append(clip(ab_x))
+
+    # 5. difference of hips (gait antisymmetry)
+    out.append(clip(rhy - lhy))
+
+    # 6. sum of knees (crouch level), saturated
+    out.append(sat(rk + lk))
+
+    # 7. forward velocity, saturated
+    out.append(sat(rvx))
+
+    # 8. vertical velocity
+    out.append(clip(rvz))
+
+    # 9. root angular velocity (roll+pitch) mixed
+    out.append(clip((ravx + ravy) * 0.3))
+
+    # 10. abdomen pitch rate damping term
+    out.append(clip(abyv * 0.2))
+
+    # 11. hip velocity antisymmetry (gait phase feedback)
+    out.append(clip((rhyv - lhyv) * 0.2))
+
+    # 12. periodic term (walking clock)
+    out.append(math.sin(0.3 * t))
+
+    # 13. second periodic term, different freq + phase
+    out.append(math.cos(0.15 * t + 0.5))
+
+    # 14. product: tilt x forward velocity (coupling), plus quaternion lean
+    out.append(clip(ab_y * sat(rvx) + (qx + qz) * qw))
+
+    # ensure finite
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="invertedpendulum">
+        <p class="code-head">Inverted Pendulum &middot; return 1,000.00 &middot; 14 features, fitted 1&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/invertedpendulum.json">invertedpendulum.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/invertedpendulum.py">champions/mujoco/invertedpendulum.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+            if v is None or not math.isfinite(v):
+                return 0.0
+            return float(v)
+        except Exception:
+            return 0.0
+
+    x = g(&#x27;cart_x&#x27;)
+    a = g(&#x27;pole_angle&#x27;)
+    xv = g(&#x27;cart_velocity&#x27;)
+    av = g(&#x27;pole_angular_velocity&#x27;)
+
+    # clip helper for saturation
+    def sat(v):
+        return math.tanh(v)
+
+    out = [
+        1.0,                      # constant bias
+        x,                        # cart position
+        a,                        # pole angle
+        xv,                       # cart velocity
+        av,                       # pole angular velocity
+        sat(a * 3.0),             # saturated angle
+        a * av,                   # angle * angular velocity (product)
+        x * xv,                   # position * velocity (product)
+        a + 0.5 * av,             # angle + rate combo (PD-like)
+        x + 0.5 * xv,             # position + velocity combo
+        math.sin(0.3 * t),        # periodic term 1
+        math.cos(0.11 * t),       # periodic term 2, different freq
+        sat(xv),                  # saturated velocity
+        a * a * (1.0 if a &gt;= 0 else -1.0),  # signed quadratic angle (growth)
+    ]
+    return [o if math.isfinite(o) else 0.0 for o in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="inverteddoublependulum">
+        <p class="code-head">Inverted Double Pendulum &middot; return 9,358.85 &middot; 14 features, fitted 1&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/inverteddoublependulum.json">inverteddoublependulum.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/inverteddoublependulum.py">champions/mujoco/inverteddoublependulum.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k):
+        try:
+            v = state[k][0]
+            if v is None or not math.isfinite(v):
+                return 0.0
+            return float(v)
+        except Exception:
+            return 0.0
+
+    cx = g(&#x27;cart_x&#x27;)
+    s1 = g(&#x27;sin_pole1_angle&#x27;)
+    s2 = g(&#x27;sin_pole2_angle&#x27;)
+    c1 = g(&#x27;cos_pole1_angle&#x27;)
+    c2 = g(&#x27;cos_pole2_angle&#x27;)
+    cv = g(&#x27;cart_velocity&#x27;)
+    w1 = g(&#x27;pole1_angular_velocity&#x27;)
+    w2 = g(&#x27;pole2_angular_velocity&#x27;)
+
+    def clip(x, lo=-3.0, hi=3.0):
+        return lo if x &lt; lo else (hi if x &gt; hi else x)
+
+    out = [
+        1.0,                              # constant bias
+        clip(cx),                         # cart position
+        cv,                               # cart velocity
+        s1,                               # pole1 angle (sin)
+        s2,                               # pole2 angle (sin)
+        c1 - c2,                          # cos difference
+        clip(w1 / 5.0),                   # pole1 angular velocity (scaled)
+        clip(w2 / 5.0),                   # pole2 angular velocity (scaled)
+        s1 * c1,                          # nonlinear coupling pole1
+        s2 * c2,                          # nonlinear coupling pole2
+        s1 - s2,                          # inter-pole angle difference
+        clip((w1 - w2) / 5.0),            # relative angular rate
+        math.tanh(cv + clip(w1 / 5.0)),   # saturating combined velocity
+        math.sin(0.3 * t),                # periodic term
+    ]
+    return [float(x) if math.isfinite(x) else 0.0 for x in out]</code></pre>
+      </div>
+      <div class="code-pane" data-game="reacher">
+        <p class="code-head">Reacher &middot; return &minus;9.24 &middot; 14 features, fitted 2&times;14 matrix in <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/reacher.json">reacher.json</a> &middot; <a href="https://github.com/ZerghamAhmed/code-to-control/blob/main/champions/mujoco/reacher.py">champions/mujoco/reacher.py</a></p>
+        <pre><code class="language-python">import math
+
+def terms(state, t):
+    def g(k, d=0.0):
+        try:
+            v = state[k][0]
+            if v is None or not math.isfinite(v):
+                return d
+            return float(v)
+        except Exception:
+            return d
+
+    c0 = g(&#x27;cos_joint0_angle&#x27;, 1.0)
+    c1 = g(&#x27;cos_joint1_angle&#x27;, 1.0)
+    s0 = g(&#x27;sin_joint0_angle&#x27;, 0.0)
+    s1 = g(&#x27;sin_joint1_angle&#x27;, 0.0)
+    w0 = g(&#x27;joint0_angular_velocity&#x27;, 0.0)
+    w1 = g(&#x27;joint1_angular_velocity&#x27;, 0.0)
+    ex = g(&#x27;fingertip_to_target_x&#x27;, 0.0)
+    ey = g(&#x27;fingertip_to_target_y&#x27;, 0.0)
+
+    # normalise velocities to O(1)
+    nw0 = math.tanh(w0 / 10.0)
+    nw1 = math.tanh(w1 / 10.0)
+
+    out = [
+        1.0,                          # constant bias
+        c0,                           # raw cos joint0
+        c1,                           # raw cos joint1
+        s0,                           # raw sin joint0
+        s1,                           # raw sin joint1
+        nw0,                          # joint0 velocity (normalised)
+        nw1,                          # joint1 velocity (normalised)
+        ex * 10.0,                    # fingertip error x (scaled)
+        ey * 10.0,                    # fingertip error y (scaled)
+        c0 * s1 - c1 * s0,            # angle difference sin term (coupling)
+        s0 * ex * 10.0 + c0 * ey * 10.0,  # error projected via joint0
+        nw0 * nw1,                    # velocity product coupling
+        math.sin(0.3 * t),            # periodic term freq A
+        math.cos(0.11 * t),           # periodic term freq B (different freq/phase)
+    ]
+
+    return [float(v) if math.isfinite(v) else 0.0 for v in out]</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Enabling Real-Time Gameplay</h2>
+        <div class="content">
+          <p>Code to Control selects an action in 11.4&nbsp;&micro;s, faster than PPO at
+             76.5&nbsp;&micro;s. ReAct takes 1.29&nbsp;s per action.</p>
+        </div>
+        <img src="./static/images/latency.png" class="figure-small" alt="Median decision latency on a log scale">
+        <p class="is-size-7 has-text-grey">Median decision latency, log scale.
+          &dagger;WorldCoder: planning time per action.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@article{ahmed2026codetocontrol,
+  title  = {Code to Control: Synthesizing Parameterized Reactive Controllers},
+  author = {Ahmed, Zergham and Tenenbaum, Joshua B. and Bates, Chris and Gershman, Samuel J.},
+  year   = {2026}
+}</code></pre>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p>This page is adapted from the
+            <a href="https://github.com/nerfies/nerfies.github.io">Nerfies project page</a>,
+            licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative
+            Commons Attribution-ShareAlike 4.0 International License</a>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

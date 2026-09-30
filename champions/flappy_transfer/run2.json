@@ -1,0 +1,13 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    bird = objects(state).get(\"bird\")\n    pipes = objects(state).all(\"pipe\")\n    \n    if bird is None:\n        return \"noop\"\n    \n    if len(pipes) < 2:\n        return \"noop\"\n    \n    bird_x = bird.x\n    bird_y = bird.y\n    bird_dy = bird.dy\n    \n    # Find the next pipe pair ahead (or current) relative to bird\n    # Pipes come in pairs: [0,1], [2,3], etc. (top, bottom)\n    # Find the pair where the bird will soon need to fit through\n    next_pair_idx = 0\n    min_distance = float('inf')\n    \n    for i in range(0, len(pipes) - 1, 2):\n        top_pipe = pipes[i]\n        bottom_pipe = pipes[i + 1]\n        \n        # Use the rightmost edge of the pipe pair as reference\n        pipe_right = max(top_pipe.x + top_pipe.w / 2.0, bottom_pipe.x + bottom_pipe.w / 2.0)\n        \n        # We care about pipes that are ahead of or very close to the bird\n        if pipe_right >= bird_x - 50:  # Lookahead margin\n            distance = pipe_right - bird_x\n            if distance < min_distance:\n                min_distance = distance\n                next_pair_idx = i\n    \n    top_pipe = pipes[next_pair_idx]\n    bottom_pipe = pipes[next_pair_idx + 1]\n    \n    # Calculate gap boundaries\n    gap_top = top_pipe.y + top_pipe.h / 2.0      # bottom edge of top pipe\n    gap_bottom = bottom_pipe.y - bottom_pipe.h / 2.0  # top edge of bottom pipe\n    gap_center = (gap_top + gap_bottom) / 2.0\n    \n    # Safety margins (in pixels)\n    safe_margin = 15.0\n    \n    # Flap if bird is below safe center OR falling toward bottom pipe\n    # Don't flap if already above the gap center (avoid over-rising)\n    if bird_y > gap_center + safe_margin and bird_dy >= -2.0:\n        return \"flap\"\n    \n    return \"noop\"\n",
+ "game": "flappy",
+ "base_game_score": 311.0,
+ "episode": 10,
+ "source_hashes": {
+  "runner": "83f3971da1dfee8a",
+  "prompt": "3de76274d82ea675",
+  "env": "c90d76b1660a672a"
+ },
+ "model": "claude-haiku-4-5-20251001",
+ "note": "Flappy Bird run 2 of the three whose champions fly on the base game (ctrl-nosky rep 2)."
+}

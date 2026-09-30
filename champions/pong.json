@@ -1,0 +1,16 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    objs = objects(state)\n    player = objs.get(\"player\")\n    \n    if player is None:\n        return \"noop\"\n    \n    # Check if there's a ball to track\n    ball = objs.get(\"ball\")\n    \n    if ball is None:\n        # No ball yet; hold center position\n        return \"noop\"\n    \n    # Predict where the ball will be in the near future\n    # The ball moves with velocity (dx, dy), so in ~10 ticks it will move by (10*dx, 10*dy)\n    # Lead the ball prediction by a few ticks to account for reaction latency\n    lead_ticks = 5  # Predict 5 ticks ahead\n    predicted_ball_y = ball.y + ball.dy * lead_ticks\n    \n    player_center = player.y\n    deadzone = 4.0  # Tighter deadzone for more responsive control\n    \n    if player_center < predicted_ball_y - deadzone:\n        # Player is above where the ball will be; move down\n        return \"down\"\n    elif player_center > predicted_ball_y + deadzone:\n        # Player is below where the ball will be; move up\n        return \"up\"\n    else:\n        # Player is near the predicted ball position; hold position\n        return \"noop\"\n",
+ "game": "pong",
+ "reported_score": 18.0,
+ "episode": 3,
+ "rails": {
+  "--max-ticks": "50000",
+  "--stall-ticks": "3000"
+ },
+ "source_hashes": {
+  "runner": "d9d15ef79e1ecf70",
+  "prompt": "8bc172abf7a1a2f1",
+  "env": "48e7bf3f10861fba"
+ },
+ "model": "claude-haiku-4-5-20251001"
+}

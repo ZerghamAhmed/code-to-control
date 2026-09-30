@@ -1,0 +1,96 @@
+You are building and refining a game-playing agent's CONTROLLER.
+Everything is Python. There is NO PDDL, NO world model, and NO planning.
+
+You are given, and must return, ONE thing:
+
+A) A REACTIVE CONTROLLER with FREE CONSTANTS. `PARAMS`, your initial guess at a
+   list of floats, and `policy(state, params) -> action`.
+
+Its numeric constants will be FITTED FOR YOU by random search against REAL game
+returns. Your job is the FORM, not the numbers. Give your best guess for `PARAMS`
+so the search starts somewhere sensible, then stop worrying about the values.
+
+You do NOT write a transition model, a plan, operators, or a heuristic. Nothing
+simulates the future. Whatever your policy returns is played immediately.
+
+STATE SCHEMA (identical convention in every game):
+- positions are box CENTERS in raw pixels; y increases DOWNWARD.
+- `<entity>` -> [[x, y], ...] (a LIST — there may be several instances);
+  `<entity>_size` -> [[width, height], ...]; `<entity>_velocity` -> per-tick
+  position deltas [[dx, dy], ...].
+- plus `score` [n], `won`, `lost`.
+- objects may APPEAR or DISAPPEAR between ticks (entering/leaving the
+  observable world) — handle absent keys/instances gracefully.
+
+An OBJECT API is PROVIDED in your namespace — prefer it over raw coordinate math.
+It is ALREADY IN SCOPE: call `objects(state)` directly. Do NOT import it. There is
+no module to import it from, and `from objects import objects` inside `policy`
+compiles and leaves `policy` callable, so nothing looks wrong until it runs — then
+every tick raises ModuleNotFoundError, the runner substitutes its fallback action,
+and the whole episode is lost. `import math` is fine; nothing else is needed.
+
+__OBJAPI__
+
+HOW THE RUNNER EXECUTES WHAT YOU RETURN — mechanism, so you can reason about it:
+- Every tick it calls `policy(state, params)` with the CURRENT REAL state and the
+  current parameter vector, and plays the action you return. No plan, no horizon.
+- Between episodes, random search perturbs `PARAMS` in both directions, plays real
+  episodes with each perturbation, and steps toward whatever scored better. Only
+  the NUMBERS move. Your code is never edited by the search.
+- If `policy` raises, or returns something not in the primitive action list, the
+  runner takes a fallback action and records the failure. A policy that crashes on
+  an unusual state is worse than a crude one that never does.
+
+DESIGN RULES, in order of importance:
+* FEW PARAMETERS. Search cost grows with `len(PARAMS)`: every extra constant costs
+  real episodes. A compact form with 4 good parameters beats a general form with
+  20. This is the single biggest thing you control.
+* Pick the state fields that MATTER and ignore the rest. Most fields do not deserve
+  a parameter of their own.
+* Structure beats generality. Proportional and derivative terms on a key quantity,
+  threshold and sign logic, a small number of explicit cases — these are cheap to
+  fit. A dense weighted sum over every field is the expensive option; choose it
+  only if nothing else fits the data.
+* Anticipate. There is no lookahead, so a policy that acts on where things ARE acts
+  too late. Velocity fields, or differences between successive positions, are how
+  you act on where they are GOING.
+* Make every parameter EARN its place. A constant the search drives to zero was
+  wasted budget; a constant it pins at an extreme means the form is too weak there.
+  You will be shown the fitted values — use them to revise the FORM next round.
+
+HOW TO USE THE OBSERVED TRANSITIONS BELOW
+They are ground truth from real play under your PREVIOUS controller, with its
+FITTED parameters. They tell you what the policy did, what it scored, and where it
+failed. Read the ticks immediately BEFORE a death: that is where the form chose
+wrong. And read the fitted parameter values as evidence about the form itself, the
+same way a physicist reads a fitted coefficient.
+
+CURRENT CONTROLLER (with the parameters the search fitted):
+
+__ABSTRACTIONS__
+
+OBSERVED TRANSITIONS (ground truth from your previous controller's play):
+__TRAJECTORY__
+
+PRIMITIVE ACTIONS available this game: __ACTIONS__
+
+CURRENT RAW STATE (your policy must handle exactly these keys):
+__RAW_STATE__
+
+MISSION:
+__MISSION__
+
+OUTPUT — return the following fenced block and nothing else:
+
+1) the updated controller:
+```python
+# controller.py
+import math
+
+PARAMS = [ ... ]          # your initial guess, one float per tunable constant
+
+def policy(state, params):
+    # `params` is a list of floats, same length as PARAMS
+    # return ONE action from the primitive action list above
+    ...
+```

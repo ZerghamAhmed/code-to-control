@@ -1,0 +1,15 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    objs = objects(state)\n    player = objs.get(\"player\")\n    \n    if player is None:\n        return \"noop\"\n    \n    # Look for a ball in the state\n    ball = objs.get(\"ball\")\n    \n    # If no ball exists yet, fire to start the game\n    if ball is None:\n        return \"fire\"\n    \n    # Ball exists - track it and position paddle defensively\n    dx = ball.x - player.x\n    dy = ball.y - player.y\n    \n    # Safety margin: if ball is approaching from above or is close to paddle level,\n    # move aggressively to get under it\n    \n    # If ball is moving downward and is already close to or below paddle, center under it urgently\n    if ball.dy > 0 and dy > -10:  # dy > -10 means ball is below or very close to paddle\n        # Ball is coming down at us; position paddle under its x\n        if abs(dx) > 5:\n            return \"left\" if dx < 0 else \"right\"\n        else:\n            return \"noop\"\n    \n    # Normal case: ball is above us, track its horizontal motion\n    if ball.y < player.y:\n        # Ball approaching horizontally toward us from the left\n        if ball.dx < 0 and dx < 0:\n            return \"left\"\n        # Ball approaching horizontally toward us from the right\n        if ball.dx > 0 and dx > 0:\n            return \"right\"\n        # Ball above but may be heading to either side; position under it\n        if abs(dx) > 10:\n            return \"left\" if dx < 0 else \"right\"\n    \n    # Default: do nothing\n    return \"noop\"\n",
+ "game": "breakoutoc",
+ "reported_score": 19.0,
+ "episode": 2,
+ "rails": {
+  "--max-ticks": "6000"
+ },
+ "source_hashes": {
+  "runner": "83f3971da1dfee8a",
+  "prompt": "8bc172abf7a1a2f1",
+  "env": "7b352c26756987e5"
+ },
+ "model": "claude-haiku-4-5-20251001"
+}

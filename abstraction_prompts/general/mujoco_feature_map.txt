@@ -1,0 +1,31 @@
+You are proposing a LIBRARY of candidate control terms for an unknown dynamical
+system. You are NOT choosing which ones matter -- a search will fit a weight for every term and
+drive the useless ones to zero. So propose LIBERALLY and DIVERSELY: include terms you are unsure
+about. A term that turns out to be useless costs nothing; a term you failed to propose can never
+be used.
+
+Return exactly this shape:
+
+```python
+def terms(state, t):
+    # state: dict, numeric fields are 1-element lists, e.g. state['{example_key}'][0]
+    # t: integer tick counter, starting at 0
+    # return a LIST of {n} floats -- the value of each candidate term right now.
+    # Each will be multiplied by a fitted weight and summed into every actuator.
+    ...
+```
+
+WHAT MAKES A GOOD LIBRARY
+* DIVERSE MECHANISMS, not variations of one. Include, for example: raw state fields; velocities;
+  a periodic term (and a second one at a different frequency, or shifted in phase); products or
+  differences of two fields; a constant bias; something that grows or saturates.
+* Terms should be O(1) in magnitude. A term that is always ~1000 will dominate before fitting
+  starts. Normalise or clip where sensible.
+* Return exactly {n} floats for EVERY state, finite always. Guard missing keys. Only `math` may
+  be imported. Module-level state between calls is allowed.
+* Do NOT try to solve the task in one term. Each term is a BUILDING BLOCK; the fit composes them.
+
+Reply with a single ```python block containing `terms`, nothing else.
+
+## Real transitions (state, action, next_state, reward earned on that step)
+{samples}

@@ -1,0 +1,15 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    objs = objects(state)\n    \n    # Get player one's hook\n    hook = objs.get(\"playeronehook\")\n    if hook is None:\n        return \"noop\"\n    \n    # Get all fish\n    fish_list = objs.all(\"fish\")\n    if not fish_list:\n        return \"noop\"\n    \n    # Find nearest fish\n    nearest_fish = None\n    min_dist = float('inf')\n    for fish in fish_list:\n        dist = hook.distance_to(fish)\n        if dist < min_dist:\n            min_dist = dist\n            nearest_fish = fish\n    \n    if nearest_fish is None:\n        return \"noop\"\n    \n    # Calculate direction to nearest fish\n    dx = nearest_fish.x - hook.x\n    dy = nearest_fish.y - hook.y\n    \n    angle = math.atan2(dy, dx)\n    angle_deg = math.degrees(angle) % 360\n    \n    # Map angle to direction and fire action\n    if angle_deg < 22.5 or angle_deg >= 337.5:\n        direction = \"right\"\n        fire_action = \"rightfire\"\n    elif angle_deg < 67.5:\n        direction = \"downright\"\n        fire_action = \"downrightfire\"\n    elif angle_deg < 112.5:\n        direction = \"down\"\n        fire_action = \"downfire\"\n    elif angle_deg < 157.5:\n        direction = \"downleft\"\n        fire_action = \"downleftfire\"\n    elif angle_deg < 202.5:\n        direction = \"left\"\n        fire_action = \"leftfire\"\n    elif angle_deg < 247.5:\n        direction = \"upleft\"\n        fire_action = \"upleftfire\"\n    elif angle_deg < 292.5:\n        direction = \"up\"\n        fire_action = \"upfire\"\n    else:\n        direction = \"upright\"\n        fire_action = \"uprightfire\"\n    \n    # Fire when close enough AND reasonably well-aligned\n    if min_dist < 120:\n        angle_to_cardinal = min(\n            abs(angle_deg),\n            abs(angle_deg - 45),\n            abs(angle_deg - 90),\n            abs(angle_deg - 135),\n            abs(angle_deg - 180),\n            abs(angle_deg - 225),\n            abs(angle_deg - 270),\n            abs(angle_deg - 315),\n            abs(360 - angle_deg)\n        )\n        \n        # Fire if within 45 degrees of a cardinal/diagonal direction\n        if angle_to_cardinal < 45:\n            return fire_action\n    \n    # Move toward the nearest fish\n    return direction\n",
+ "game": "fishingderby",
+ "reported_score": 31.0,
+ "episode": 19,
+ "rails": {
+  "--max-ticks": "6000"
+ },
+ "source_hashes": {
+  "runner": "88add1d0e72d9491",
+  "prompt": "408a76ea5c222816",
+  "env": "44c5154da59408a6"
+ },
+ "model": "claude-haiku-4-5-20251001"
+}

@@ -1,0 +1,17 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    objs = objects(state)\n    player = objs.get(\"player\")\n    \n    if player is None:\n        return 'noop'\n    \n    # Primary objective: track ball\n    ball = objs.get(\"ball\")\n    \n    if ball is not None:\n        # Lookahead 1 tick to anticipate ball motion (more responsive)\n        lookahead_ticks = 1\n        predicted_ball_y = ball.y + ball.dy * lookahead_ticks\n        \n        # Vertical distance from player center to predicted ball position\n        dy = predicted_ball_y - player.y\n        \n        # Tighter threshold to reduce oscillation while maintaining responsiveness\n        threshold = 7\n        \n        if dy > threshold:\n            return 'down'\n        elif dy < -threshold:\n            return 'up'\n        else:\n            return 'noop'\n    \n    # No ball present: hold position\n    return 'noop'\n",
+ "game": "pong",
+ "reported_score": 21.0,
+ "episode": 18,
+ "rails": {
+  "--max-ticks": "50000",
+  "--stall-ticks": "3000"
+ },
+ "source_hashes": {
+  "runner": "d9d15ef79e1ecf70",
+  "prompt": "8bc172abf7a1a2f1",
+  "env": "48e7bf3f10861fba"
+ },
+ "model": "claude-haiku-4-5-20251001",
+ "note": "Best of the three Pong runs behind the paper's Pong entry (rep 1). The paper reports the median of the three, which is champions/pong.json."
+}

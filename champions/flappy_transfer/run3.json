@@ -1,0 +1,13 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    bird = objects(state).get(\"bird\")\n    \n    # Safety check\n    if bird is None:\n        return \"noop\"\n    \n    # Get next pipe (pipes move left, so find the closest one ahead)\n    pipes = objects(state).all(\"pipe\")\n    \n    if not pipes:\n        return \"noop\"\n    \n    # Find the next pipe approaching from the right\n    # Pipes come in pairs (top and bottom), we need to identify pairs by x-position\n    next_pipe = None\n    for pipe in pipes:\n        if pipe.x > bird.x - 100:  # Pipe ahead or slightly behind but still relevant\n            if next_pipe is None or pipe.x < next_pipe.x:\n                next_pipe = pipe\n    \n    if next_pipe is None:\n        # No upcoming pipes, try to stay in middle\n        target_y = 280\n    else:\n        # Determine if this is a top or bottom pipe by examining y position\n        # Top pipes have smaller y values (near ceiling)\n        # Bottom pipes have larger y values (near ground)\n        \n        # Find both pipes at the same x-position to identify the gap\n        same_x_pipes = [p for p in pipes if abs(p.x - next_pipe.x) < 5]\n        \n        if len(same_x_pipes) >= 2:\n            # Sort by y position\n            same_x_pipes.sort(key=lambda p: p.y)\n            top_pipe = same_x_pipes[0]\n            bottom_pipe = same_x_pipes[1]\n            \n            # Gap center\n            gap_center = (top_pipe.y + top_pipe.h / 2 + bottom_pipe.y - bottom_pipe.h / 2) / 2\n            target_y = gap_center\n        else:\n            target_y = 280\n    \n    # Simple control: if below target, flap; otherwise noop\n    # Add hysteresis to avoid oscillation\n    margin = 30\n    \n    if bird.y > target_y + margin:\n        # Bird is too low, flap to go up\n        return \"flap\"\n    else:\n        # Bird is at good height or too high, let gravity pull it down\n        return \"noop\"\n",
+ "game": "flappy",
+ "base_game_score": 311.0,
+ "episode": 1,
+ "source_hashes": {
+  "runner": "28f124c62a1ea802",
+  "prompt": "3de76274d82ea675",
+  "env": "c90d76b1660a672a"
+ },
+ "model": "claude-haiku-4-5-20251001",
+ "note": "Flappy Bird run 3 of the three whose champions fly on the base game (ctrl-nosky rep 3)."
+}

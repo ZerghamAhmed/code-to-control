@@ -1,0 +1,84 @@
+You are building and refining a game-playing agent's CONTROLLER.
+Everything is Python. There is NO PDDL, NO world model, and NO planning.
+
+You are given, and must return, ONE thing:
+
+A) A REACTIVE CONTROLLER. `policy(state) -> action`, mapping the current state
+   directly to the next primitive action. No search, no simulation, no lookahead.
+
+You do NOT write a transition model, a plan, operators, or a heuristic. Nothing
+simulates the future. Whatever your policy returns is played immediately.
+
+STATE SCHEMA (identical convention in every game):
+- positions are box CENTERS in raw pixels; y increases DOWNWARD.
+- `<entity>` -> [[x, y], ...] (a LIST — there may be several instances);
+  `<entity>_size` -> [[width, height], ...]; `<entity>_velocity` -> per-tick
+  position deltas [[dx, dy], ...].
+- plus `score` [n], `won`, `lost`.
+- objects may APPEAR or DISAPPEAR between ticks (entering/leaving the
+  observable world) — handle absent keys/instances gracefully.
+
+An OBJECT API is PROVIDED in your namespace — prefer it over raw coordinate math.
+It is ALREADY IN SCOPE: call `objects(state)` directly. Do NOT import it. There is
+no module to import it from, and `from objects import objects` inside `policy`
+raises ModuleNotFoundError on EVERY tick — the code loads, the function is
+callable, and the agent then falls out of the sky. `import math` is fine; nothing
+else is needed.
+
+__OBJAPI__
+
+HOW THE RUNNER EXECUTES WHAT YOU RETURN — mechanism, so you can reason about it:
+- Every tick it calls `policy(state)` with the CURRENT REAL state and plays the
+  action you return. There is no plan to cycle and no horizon to run out.
+- Your policy therefore sees ground truth every tick and never accumulates
+  prediction error. It also gets no chance to look ahead: any anticipation must
+  be written into the policy itself, from the current state.
+- If `policy` raises, or returns something not in the primitive action list, the
+  runner takes a fallback action and records the failure as evidence. A policy
+  that crashes on an unusual state is worse than a crude one that never does.
+
+WHAT MAKES A GOOD CONTROLLER HERE:
+- React to the RELATIVE geometry that decides the next few ticks (distances and
+  velocity differences between the player and the things that matter), not to
+  absolute coordinates.
+- Anticipate. Because there is no lookahead, a policy that acts on where things
+  ARE will act too late; one that acts on where they are GOING will not. Velocity
+  fields, or differences between successive positions, are how you do that.
+- Prefer a small number of clear cases over one elaborate expression. Threshold
+  and sign logic is legitimate and often optimal when the action set is discrete.
+- Numeric constants are YOUR responsibility in this run — nothing fits them for
+  you. Pick values you can justify from the observed transitions below, and treat
+  a constant that the evidence does not pin down as a thing to revise next round.
+
+HOW TO USE THE OBSERVED TRANSITIONS BELOW
+They are ground truth from real play under your PREVIOUS controller. They tell you
+what your policy actually did, what it scored, and where it failed. Read the ticks
+immediately BEFORE a death: that is where the policy chose wrong, and it is almost
+always a case your current conditions do not cover.
+
+CURRENT CONTROLLER:
+
+__ABSTRACTIONS__
+
+OBSERVED TRANSITIONS (ground truth from your previous controller's play):
+__TRAJECTORY__
+
+PRIMITIVE ACTIONS available this game: __ACTIONS__
+
+CURRENT RAW STATE (your policy must handle exactly these keys):
+__RAW_STATE__
+
+MISSION:
+__MISSION__
+
+OUTPUT — return the following fenced block and nothing else:
+
+1) the updated controller:
+```python
+# controller.py
+import math
+
+def policy(state):
+    # return ONE action from the primitive action list above
+    ...
+```

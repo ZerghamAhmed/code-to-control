@@ -1,0 +1,15 @@
+{
+ "champion_src": "# controller.py\nimport math\n\ndef policy(state):\n    \"\"\"\n    Frogger-like game with stationary cars blocking the road.\n    \n    Strategy:\n    - Move UP toward y=0 (goal) when possible\n    - When blocked by stationary cars and stuck, move DOWN to reset\n    - Check all chickens to detect if progress is truly blocked\n    \"\"\"\n    objs = objects(state)\n    \n    chickens = objs.all(\"chicken\")\n    if not chickens:\n        return \"noop\"\n    \n    cars = objs.all(\"car\")\n    \n    # === COLLISION AVOIDANCE ===\n    # If touching a car, move down immediately\n    for chicken in chickens:\n        for car in cars:\n            if chicken.touches(car, margin=3):\n                return \"down\"\n    \n    # === PROXIMITY THREAT ===\n    # If any car is very close and approaching, escape down\n    for chicken in chickens:\n        for car in cars:\n            dist = chicken.distance_to(car)\n            if dist < 12 and car.approaching(chicken):\n                return \"down\"\n    \n    # === STUCK DETECTION ===\n    # Track the best y-position achieved by any chicken\n    if \"_best_y\" not in state:\n        state[\"_best_y\"] = min(c.y for c in chickens)\n        state[\"_stuck_ticks\"] = 0\n    \n    current_best_y = min(c.y for c in chickens)\n    \n    if current_best_y < state[\"_best_y\"]:\n        # Progress made: reset stuck counter\n        state[\"_best_y\"] = current_best_y\n        state[\"_stuck_ticks\"] = 0\n    else:\n        # No progress\n        state[\"_stuck_ticks\"] += 1\n    \n    # If stuck for too long, reset by moving down\n    if state[\"_stuck_ticks\"] >= 4:\n        state[\"_stuck_ticks\"] = 0\n        state[\"_best_y\"] = min(c.y for c in chickens)\n        return \"down\"\n    \n    # === DEFAULT: MOVE UP ===\n    return \"up\"\n",
+ "game": "freeway",
+ "reported_score": 22.0,
+ "episode": 5,
+ "rails": {
+  "--max-ticks": "3000"
+ },
+ "source_hashes": {
+  "runner": "83f3971da1dfee8a",
+  "prompt": "8bc172abf7a1a2f1",
+  "env": "8925350272770c63"
+ },
+ "model": "claude-haiku-4-5-20251001"
+}
