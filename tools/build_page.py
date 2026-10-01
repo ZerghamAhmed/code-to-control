@@ -17,6 +17,8 @@ OUT = os.path.join(ROOT, "docs", "index.html")
 
 REPO = "https://github.com/ZerghamAhmed/code-to-control"
 SITE = "https://zerghamahmed.github.io/code-to-control"
+ARXIV = "https://arxiv.org/abs/2609.38733"
+PDF = "https://arxiv.org/pdf/2609.38733"
 DESCRIPTION = ("A language model writes a game-playing controller as an ordinary Python program. "
                "Choosing an action takes one function call, with no language-model call and no planning.")
 
@@ -82,9 +84,10 @@ ABSTRACT = (
 )
 
 BIBTEX = """@article{ahmed2026codetocontrol,
-  title  = {Code to Control: Synthesizing Parameterized Reactive Controllers},
-  author = {Ahmed, Zergham and Tenenbaum, Joshua B. and Bates, Chris and Gershman, Samuel J.},
-  year   = {2026}
+  title   = {Code to Control: Synthesizing Parameterized Reactive Controllers},
+  author  = {Ahmed, Zergham and Tenenbaum, Joshua B. and Bates, Chris and Gershman, Samuel J.},
+  journal = {arXiv preprint arXiv:2609.38733},
+  year    = {2026}
 }"""
 
 
@@ -575,13 +578,16 @@ def build():
           </div>
           <div class="column has-text-centered">
             <div class="publication-links">
-              <!-- Uncomment once the arXiv ID exists.
               <span class="link-block">
-                <a href="https://arxiv.org/abs/XXXX.XXXXX" class="external-link button is-normal is-rounded is-dark">
+                <a href="{PDF}" class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
+                </a>
+              </span>
+              <span class="link-block">
+                <a href="{ARXIV}" class="external-link button is-normal is-rounded is-dark">
                   <span class="icon"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
                 </a>
               </span>
-              -->
               <span class="link-block">
                 <a href="{REPO}" class="external-link button is-normal is-rounded is-dark">
                   <span class="icon"><i class="fab fa-github"></i></span><span>Code</span>

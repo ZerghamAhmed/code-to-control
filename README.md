@@ -4,7 +4,7 @@
 
 **Synthesizing Parameterized Reactive Controllers**
 
-[**Project page**](https://zerghamahmed.github.io/code-to-control) | **Paper** (arXiv link to follow)
+[**Project page**](https://zerghamahmed.github.io/code-to-control) | [**Paper**](https://arxiv.org/abs/2609.38733)
 
 <img src="docs/static/images/readme_banner.gif" width="480" alt="Example gameplay: six Atari games, Flappy Bird on the base game and with 1.5x gravity, and eight MuJoCo tasks">
 
@@ -171,6 +171,7 @@ this release differs from the original runs.
 @article{ahmed2026codetocontrol,
   title   = {Code to Control: Synthesizing Parameterized Reactive Controllers},
   author  = {Ahmed, Zergham and Tenenbaum, Joshua B. and Bates, Chris and Gershman, Samuel J.},
+  journal = {arXiv preprint arXiv:2609.38733},
   year    = {2026}
 }
 ```
